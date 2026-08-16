@@ -245,7 +245,7 @@ body::before {
 }
 .stat::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--bar, var(--accent));
+  background: var(--accent);
 }
 .stat-k {
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .14em;

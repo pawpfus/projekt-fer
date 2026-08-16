@@ -101,7 +101,7 @@ function filtered() {
 }
 
 const tileHtml = (t) => `
-  <div class="stat" style="--bar:${t.c}">
+  <div class="stat">
     <div class="stat-k">${esc(t.k)}</div>
     <div class="stat-v">${esc(t.v)}${t.u ? `<span class="stat-u">${esc(t.u)}</span>` : ''}</div>
   </div>`;
@@ -110,17 +110,17 @@ function renderStats(list) {
   const s = summary(list);
 
   $('#statsUtama').innerHTML = [
-    { k: 'Petani', v: fmt(s.petani), c: 'var(--moss)' },
-    { k: 'Total Luas', v: fmt(s.luas, 2), u: 'Ha', c: 'var(--teal)' },
-    { k: 'Baris MT', v: s.mt.join(' / '), u: 'MT1/2/3', c: 'var(--sky)' },
+    { k: 'Petani', v: fmt(s.petani) },
+    { k: 'Total Luas', v: fmt(s.luas, 2), u: 'Ha' },
+    { k: 'Baris MT', v: s.mt.join(' / '), u: 'MT1/2/3' },
   ].map(tileHtml).join('');
 
   $('#statsPupuk').innerHTML = [
-    { k: 'Urea', v: fmt(s.urea), u: 'kg', c: 'var(--sky)' },
-    { k: 'NPK', v: fmt(s.npk), u: 'kg', c: 'var(--amber)' },
-    { k: 'NPK Formula', v: fmt(s.npkFormula), u: 'kg', c: 'var(--amber)' },
-    { k: 'Organik', v: fmt(s.organik), u: 'kg', c: 'var(--moss)' },
-    { k: 'ZA', v: fmt(s.za), u: 'kg', c: 'var(--coral)' },
+    { k: 'Urea', v: fmt(s.urea), u: 'kg' },
+    { k: 'NPK', v: fmt(s.npk), u: 'kg' },
+    { k: 'NPK Formula', v: fmt(s.npkFormula), u: 'kg' },
+    { k: 'Organik', v: fmt(s.organik), u: 'kg' },
+    { k: 'ZA', v: fmt(s.za), u: 'kg' },
   ].map(tileHtml).join('');
 }
 
@@ -971,13 +971,13 @@ $('#fileDosis').onchange = async (e) => {
 function renderPeriksa() {
   const bersih = state.petani.length - vres.map.size;
   $('#statsPeriksa').innerHTML = [
-    { k: 'Total Baris', v: fmt(state.petani.length), c: 'var(--ink-3)' },
-    { k: 'Siap Ekspor', v: fmt(state.petani.length - vres.badRows), c: 'var(--moss)' },
-    { k: 'Baris Tidak Sesuai', v: fmt(vres.badRows), c: 'var(--coral)' },
-    { k: 'Tidak Sesuai', v: fmt(vres.errors), c: 'var(--coral)' },
-    { k: 'Peringatan', v: fmt(vres.warns), c: 'var(--amber)' },
-    { k: 'Tanpa Catatan', v: fmt(bersih), c: 'var(--teal)' },
-  ].map((t) => `<div class="stat" style="--bar:${t.c}"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}</div></div>`).join('');
+    { k: 'Total Baris', v: fmt(state.petani.length) },
+    { k: 'Siap Ekspor', v: fmt(state.petani.length - vres.badRows) },
+    { k: 'Baris Tidak Sesuai', v: fmt(vres.badRows) },
+    { k: 'Tidak Sesuai', v: fmt(vres.errors) },
+    { k: 'Peringatan', v: fmt(vres.warns) },
+    { k: 'Tanpa Catatan', v: fmt(bersih) },
+  ].map((t) => `<div class="stat"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}</div></div>`).join('');
 
   renderDup();
 
