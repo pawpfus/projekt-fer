@@ -445,6 +445,86 @@ export function summary(list = state.petani) {
   return s;
 }
 
+/* ── sebaran untuk infografik ────────────────────────────── */
+
+const mtAktif = (mt) => {
+  const k = upper(mt.komoditas);
+  return k && k !== '-' && numLuas(mt.luas) > 0;
+};
+
+/** Urutkan menurun, sisakan `maks` teratas, sisanya jadi satu irisan "Lainnya". */
+export function ringkasIrisan(pasangan, maks = 5) {
+  const urut = [...pasangan].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  if (urut.length <= maks + 1) return urut.map(([label, value]) => ({ label, value }));
+  const atas = urut.slice(0, maks).map(([label, value]) => ({ label, value }));
+  const sisa = urut.slice(maks).reduce((s, [, v]) => s + v, 0);
+  // ditandai `sisa` agar diberi warna netral — ember residu, bukan kategori
+  return sisa > 0
+    ? [...atas, { label: `Lainnya (${urut.length - maks})`, value: sisa, sisa: true }]
+    : atas;
+}
+
+/** Jumlah petani per kelompok — atau per desa bila datanya lintas desa. */
+export function sebaranPetani(list = state.petani) {
+  const desa = new Set(list.map((p) => txt(p.namaDesa || p.kodeDesa)).filter(Boolean));
+  const pakaiDesa = desa.size > 1;
+  const m = new Map();
+  list.forEach((p) => {
+    const k = pakaiDesa
+      ? (txt(p.namaDesa) || txt(p.kodeDesa) || '(tanpa desa)')
+      : (upper(p.namaPoktan) || txt(p.idPoktan) || '(tanpa poktan)');
+    m.set(k, (m.get(k) || 0) + 1);
+  });
+  return { basis: pakaiDesa ? 'desa' : 'kelompok tani', irisan: ringkasIrisan([...m]) };
+}
+
+/** Luas per komoditas (seluruh musim). Bila hanya satu komoditas,
+ *  pemanggil sebaiknya beralih ke sebaranLuasMt agar donatnya bermakna. */
+export function sebaranLuasKomoditas(list = state.petani) {
+  const m = new Map();
+  list.forEach((p) => p.mt.forEach((mt) => {
+    if (!mtAktif(mt)) return;
+    const k = upper(mt.komoditas);
+    m.set(k, (m.get(k) || 0) + numLuas(mt.luas));
+  }));
+  return ringkasIrisan([...m]);
+}
+
+/** Luas per kelompok/desa — basis sama dengan sebaranPetani. */
+export function sebaranLuasWilayah(list = state.petani) {
+  const desa = new Set(list.map((p) => txt(p.namaDesa || p.kodeDesa)).filter(Boolean));
+  const pakaiDesa = desa.size > 1;
+  const m = new Map();
+  list.forEach((p) => {
+    const k = pakaiDesa
+      ? (txt(p.namaDesa) || txt(p.kodeDesa) || '(tanpa desa)')
+      : (upper(p.namaPoktan) || txt(p.idPoktan) || '(tanpa poktan)');
+    const luas = p.mt.reduce((s, mt) => s + (mtAktif(mt) ? numLuas(mt.luas) : 0), 0);
+    m.set(k, (m.get(k) || 0) + luas);
+  });
+  return {
+    basis: pakaiDesa ? 'desa' : 'kelompok tani',
+    irisan: ringkasIrisan([...m]).map((x) => ({ ...x, value: +x.value.toFixed(2) })),
+  };
+}
+
+export function sebaranLuasMt(list = state.petani) {
+  const t = [0, 0, 0];
+  list.forEach((p) => p.mt.forEach((mt, i) => { if (mtAktif(mt)) t[i] += numLuas(mt.luas); }));
+  return t.map((v, i) => ({ label: `MT${i + 1}`, value: +v.toFixed(2) })).filter((x) => x.value > 0);
+}
+
+export function sebaranBarisMt(list = state.petani) {
+  const t = [0, 0, 0];
+  list.forEach((p) => p.mt.forEach((mt, i) => { if (mtAktif(mt)) t[i]++; }));
+  return t.map((v, i) => ({ label: `MT${i + 1}`, value: v })).filter((x) => x.value > 0);
+}
+
+export function sebaranPupuk(list = state.petani) {
+  const s = summary(list);
+  return PUPUK.map(({ key, label }) => ({ label, value: num(s[key]) })).filter((x) => x.value > 0);
+}
+
 export function groupCounts(list = state.petani, key = 'namaDesa') {
   const m = new Map();
   list.forEach((p) => {

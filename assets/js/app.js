@@ -10,7 +10,8 @@ import {
   emptyPetani, normalizePetani, dosisFor, komoditasList,
   recalcMt, recalcPetani, recalcAll, validatePetani, validateAll, summary,
   poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda, cocokkanPoktan,
-  isiMusimTanam,
+  isiMusimTanam, sebaranPetani, sebaranLuasKomoditas, sebaranLuasWilayah,
+  sebaranBarisMt, sebaranPupuk,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
@@ -100,29 +101,131 @@ function filtered() {
   });
 }
 
-const tileHtml = (t) => `
-  <div class="stat">
-    <div class="stat-k">${esc(t.k)}</div>
-    <div class="stat-v">${esc(t.v)}${t.u ? `<span class="stat-u">${esc(t.u)}</span>` : ''}</div>
-  </div>`;
+/* ── infografik donat ────────────────────────────────────── */
+
+const R = 42, TEBAL = 13, KELILING = 2 * Math.PI * R, CELAH = 2;
+
+/** Satu donat: irisan [{label, value}], plus angka besar di tengah. */
+function donutHtml(p) {
+  const total = p.irisan.reduce((s, x) => s + x.value, 0);
+  if (!total) {
+    return `<figure class="viz">
+      <figcaption class="viz-title">${esc(p.judul)}</figcaption>
+      <div class="viz-sub">${esc(p.sub || '')}</div>
+      <div class="viz-kosong">Belum ada data</div></figure>`;
+  }
+
+  const tunggal = p.irisan.length === 1;
+  const warna = (x, i) => (x.sisa ? 'var(--s-lain)' : `var(--s${(i % 6) + 1})`);
+  let jalan = 0;
+  const cincin = p.irisan.map((x, i) => {
+    const bagian = x.value / total;
+    const panjang = Math.max(bagian * KELILING - (tunggal ? 0 : CELAH), 0.6);
+    const offset = -jalan * KELILING;
+    jalan += bagian;
+    return `<circle r="${R}" cx="50" cy="50" fill="none"
+      stroke="${warna(x, i)}" stroke-width="${TEBAL}"
+      stroke-dasharray="${panjang.toFixed(2)} ${(KELILING - panjang).toFixed(2)}"
+      stroke-dashoffset="${offset.toFixed(2)}"
+      data-i="${i}" data-nm="${esc(x.label)}"
+      data-vl="${esc(p.fmt(x.value))}" data-ps="${esc(fmt(bagian * 100, 1))}%">
+      <title>${esc(x.label)}: ${esc(p.fmt(x.value))} (${fmt(bagian * 100, 1)}%)</title></circle>`;
+  }).join('');
+
+  const legenda = p.irisan.map((x, i) => `
+    <li><i style="--c:${warna(x, i)}"></i>
+      <span class="nm" title="${esc(x.label)}">${esc(x.label)}</span>
+      <span class="vl"><b>${esc(p.fmt(x.value))}</b> · ${fmt(x.value / total * 100, 1)}%</span></li>`).join('');
+
+  return `<figure class="viz">
+    <figcaption class="viz-title">${esc(p.judul)}</figcaption>
+    <div class="viz-sub">${esc(p.sub || '')}</div>
+    <div class="viz-donut" data-total="${esc(p.pusat)}" data-satuan="${esc(p.satuan)}">
+      <svg viewBox="0 0 100 100" role="img" aria-label="${esc(p.judul)}"
+           style="transform:rotate(-90deg)">${cincin}</svg>
+      <div class="viz-center"><b>${esc(p.pusat)}</b><span>${esc(p.satuan)}</span></div>
+    </div>
+    <ul class="viz-legend">${legenda}</ul>
+  </figure>`;
+}
+
+function panelViz(list) {
+  const s = summary(list);
+  const kg = (v) => fmt(v) + ' kg';
+  const ha = (v) => fmt(v, 2) + ' Ha';
+  const org = (v) => fmt(v);
+
+  const pet = sebaranPetani(list);
+  const kom = sebaranLuasKomoditas(list);
+  const pakaiKom = kom.length > 1;
+
+  return [
+    { judul: 'Petani', sub: `Sebaran per ${pet.basis}`, irisan: pet.irisan,
+      pusat: fmt(s.petani), satuan: 'petani', fmt: org },
+    // satu komoditas saja bikin donat komoditas jadi cincin utuh tanpa makna —
+    // pakai sebaran wilayah supaya panel ini tetap menjawab sesuatu
+    pakaiKom
+      ? { judul: 'Luas lahan', sub: 'Sebaran per komoditas', irisan: kom,
+          pusat: fmt(s.luas, 2), satuan: 'Ha total', fmt: ha }
+      : (() => { const w = sebaranLuasWilayah(list);
+          return { judul: 'Luas lahan', sub: `Sebaran per ${w.basis}`, irisan: w.irisan,
+                   pusat: fmt(s.luas, 2), satuan: 'Ha total', fmt: ha }; })(),
+    { judul: 'Baris terisi', sub: 'Sebaran per musim tanam', irisan: sebaranBarisMt(list),
+      pusat: fmt(s.mt.reduce((a, b) => a + b, 0)), satuan: 'baris musim tanam', fmt: org },
+    { judul: 'Pupuk', sub: 'Komposisi kebutuhan', irisan: sebaranPupuk(list),
+      pusat: fmt(PUPUK.reduce((a, { key }) => a + num(s[key]), 0)), satuan: 'kg total', fmt: kg },
+  ];
+}
+
+let vizPanel = [];
 
 function renderStats(list) {
-  const s = summary(list);
-
-  $('#statsUtama').innerHTML = [
-    { k: 'Petani', v: fmt(s.petani) },
-    { k: 'Total Luas', v: fmt(s.luas, 2), u: 'Ha' },
-    { k: 'Baris MT', v: s.mt.join(' / '), u: 'MT1/2/3' },
-  ].map(tileHtml).join('');
-
-  $('#statsPupuk').innerHTML = [
-    { k: 'Urea', v: fmt(s.urea), u: 'kg' },
-    { k: 'NPK', v: fmt(s.npk), u: 'kg' },
-    { k: 'NPK Formula', v: fmt(s.npkFormula), u: 'kg' },
-    { k: 'Organik', v: fmt(s.organik), u: 'kg' },
-    { k: 'ZA', v: fmt(s.za), u: 'kg' },
-  ].map(tileHtml).join('');
+  vizPanel = panelViz(list);
+  $('#vizGrid').innerHTML = vizPanel.map(donutHtml).join('');
+  if (!$('#vizTabel').hidden) renderVizTabel();
 }
+
+/** Tampilan tabel — pemenuhan aturan relief & pembaca layar. */
+function renderVizTabel() {
+  $('#vizTabel').innerHTML = vizPanel.map((p) => {
+    const total = p.irisan.reduce((s, x) => s + x.value, 0);
+    return `<div class="section-label" style="margin-top:16px">${esc(p.judul)} — ${esc(p.sub)}</div>
+      <table class="tbl"><thead><tr><th>Kategori</th><th class="num">Nilai</th><th class="num">Porsi</th></tr></thead>
+      <tbody>${p.irisan.map((x) => `<tr><td>${esc(x.label)}</td>
+        <td class="num">${esc(p.fmt(x.value))}</td>
+        <td class="num">${total ? fmt(x.value / total * 100, 1) : '0'}%</td></tr>`).join('')
+        || '<tr><td colspan="3" class="muted">Belum ada data</td></tr>'}</tbody></table>`;
+  }).join('');
+}
+
+$('#btnVizTabel').onclick = () => {
+  const t = $('#vizTabel'), g = $('#vizGrid');
+  const keTabel = t.hidden;
+  t.hidden = !keTabel; g.hidden = keTabel;
+  if (keTabel) renderVizTabel();
+  $('#btnVizTabel').innerHTML = keTabel
+    ? '<i class="ti ti-chart-donut-3"></i>Lihat sebagai grafik'
+    : '<i class="ti ti-table"></i>Lihat sebagai tabel';
+};
+
+/* sorot irisan: angka tengah ikut berganti saat ditunjuk */
+$('#vizGrid').addEventListener('mouseover', (e) => {
+  const c = e.target.closest('circle[data-nm]');
+  const box = e.target.closest('.viz-donut');
+  if (!c || !box) return;
+  box.classList.add('hover');
+  box.querySelectorAll('circle').forEach((x) => x.classList.toggle('on', x === c));
+  box.querySelector('.viz-center').innerHTML =
+    `<b>${esc(c.dataset.vl)}</b><span>${esc(c.dataset.nm)} · ${esc(c.dataset.ps)}</span>`;
+});
+$('#vizGrid').addEventListener('mouseout', (e) => {
+  const box = e.target.closest('.viz-donut');
+  if (!box || box.contains(e.relatedTarget)) return;
+  box.classList.remove('hover');
+  box.querySelectorAll('circle').forEach((x) => x.classList.remove('on'));
+  box.querySelector('.viz-center').innerHTML =
+    `<b>${esc(box.dataset.total)}</b><span>${esc(box.dataset.satuan)}</span>`;
+});
 
 function fillFilterOptions() {
   const keep = (sel, vals) => {

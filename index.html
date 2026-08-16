@@ -42,8 +42,17 @@
 
   <!-- ══════════ DATA PETANI ══════════ -->
   <section class="view active" id="view-data">
-    <div class="stats-row stats-3" id="statsUtama"></div>
-    <div class="stats-row stats-5" id="statsPupuk"></div>
+    <div class="card" id="cardViz">
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-chart-donut-3"></i>Ringkasan</div>
+        <div class="topbar-spacer"></div>
+        <button class="btn btn-sm" id="btnVizTabel"><i class="ti ti-table"></i>Lihat sebagai tabel</button>
+      </div>
+      <div class="card-body">
+        <div class="viz-grid" id="vizGrid"></div>
+        <div id="vizTabel" hidden></div>
+      </div>
+    </div>
 
     <div class="card">
       <div class="card-head">
