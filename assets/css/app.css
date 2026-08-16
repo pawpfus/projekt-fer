@@ -238,21 +238,19 @@ body::before {
   .stats-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats-3 > .stat:last-child { grid-column: span 2; }
 }
+/* Ubin ringkasan sengaja dibuat lebih lembut daripada komponen lain:
+   tanpa garis aksen, sudut membulat, label huruf biasa. */
 .stat {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: var(--r-md); padding: 13px 15px 13px 17px;
-  position: relative; overflow: hidden; box-shadow: var(--shadow-sm);
-}
-.stat::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--accent);
+  border-radius: 16px; padding: 15px 18px;
+  position: relative; overflow: hidden;
 }
 .stat-k {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 700; letter-spacing: .14em;
-  text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 500; letter-spacing: 0;
+  color: var(--ink-3); margin-bottom: 2px;
 }
-.stat-v { font-family: var(--font-disp); font-size: 22px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
-.stat-u { font-size: 11px; color: var(--ink-3); font-weight: 500; margin-left: 4px; }
+.stat-v { font-family: var(--font-ui); font-size: 21px; font-weight: 600; letter-spacing: -.02em; line-height: 1.25; }
+.stat-u { font-size: 11.5px; color: var(--ink-3); font-weight: 500; margin-left: 4px; letter-spacing: 0; }
 
 /* ── CONTROLS ───────────────────────────────────────────── */
 .btn {
