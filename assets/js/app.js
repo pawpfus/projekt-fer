@@ -100,23 +100,28 @@ function filtered() {
   });
 }
 
+const tileHtml = (t) => `
+  <div class="stat" style="--accent:${t.c}">
+    <div class="stat-k">${esc(t.k)}</div>
+    <div class="stat-v">${esc(t.v)}${t.u ? `<span class="stat-u">${esc(t.u)}</span>` : ''}</div>
+  </div>`;
+
 function renderStats(list) {
   const s = summary(list);
-  const tiles = [
+
+  $('#statsUtama').innerHTML = [
     { k: 'Petani', v: fmt(s.petani), c: 'var(--moss)' },
     { k: 'Total Luas', v: fmt(s.luas, 2), u: 'Ha', c: 'var(--teal)' },
+    { k: 'Baris MT', v: s.mt.join(' / '), u: 'MT1/2/3', c: 'var(--sky)' },
+  ].map(tileHtml).join('');
+
+  $('#statsPupuk').innerHTML = [
     { k: 'Urea', v: fmt(s.urea), u: 'kg', c: 'var(--sky)' },
     { k: 'NPK', v: fmt(s.npk), u: 'kg', c: 'var(--amber)' },
     { k: 'NPK Formula', v: fmt(s.npkFormula), u: 'kg', c: 'var(--amber)' },
     { k: 'Organik', v: fmt(s.organik), u: 'kg', c: 'var(--moss)' },
     { k: 'ZA', v: fmt(s.za), u: 'kg', c: 'var(--coral)' },
-    { k: 'Baris MT', v: s.mt.join(' / '), u: 'MT1/2/3', c: 'var(--ink-3)' },
-  ];
-  $('#stats').innerHTML = tiles.map((t) => `
-    <div class="stat" style="--accent:${t.c}">
-      <div class="stat-k">${esc(t.k)}</div>
-      <div class="stat-v">${esc(t.v)}${t.u ? `<span class="stat-u">${esc(t.u)}</span>` : ''}</div>
-    </div>`).join('');
+  ].map(tileHtml).join('');
 }
 
 function fillFilterOptions() {
@@ -880,8 +885,6 @@ function renderDosis() {
   const m = state.dosisMeta;
   $('#dmYear').value = m.year; $('#dmProv').value = m.namaProv;
   $('#dmKab').value = m.namaKab; $('#dmKec').value = m.namaKec;
-  $('#pillWilayah').textContent = `${m.namaKec || '—'} · ${m.year}`;
-  $('#brandSub').textContent = `Dosis ${m.year} · ${m.namaKec || '—'}`;
 }
 
 $('#tbodyDosis').addEventListener('input', (e) => {
@@ -940,8 +943,6 @@ $('#fileDosis').onchange = async (e) => {
     state.dosisMeta.namaProv = $('#dmProv').value;
     state.dosisMeta.namaKab = $('#dmKab').value;
     state.dosisMeta.namaKec = $('#dmKec').value;
-    $('#pillWilayah').textContent = `${state.dosisMeta.namaKec || '—'} · ${state.dosisMeta.year}`;
-    $('#brandSub').textContent = `Dosis ${state.dosisMeta.year} · ${state.dosisMeta.namaKec || '—'}`;
     emit();
   };
 });

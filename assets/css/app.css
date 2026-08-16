@@ -172,6 +172,28 @@ body {
 
 /* ── STAT TILES ─────────────────────────────────────────── */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-bottom: 16px; }
+
+/* baris ringkasan: identitas di atas, pupuk di bawah */
+.stats-row { display: grid; gap: 10px; }
+.stats-row + .stats-row { margin-top: 10px; }
+.stats-row:last-of-type { margin-bottom: 16px; }
+.stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stats-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* saat kolom tidak habis membagi jumlah ubin, ubin terakhir melebar
+   mengisi sisa baris — tidak pernah ada sel kosong menggantung */
+@media (max-width: 880px) {
+  .stats-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stats-5 > .stat:last-child { grid-column: span 2; }
+}
+@media (max-width: 620px) {
+  .stats-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-5 > .stat:last-child { grid-column: span 2; }
+}
+@media (max-width: 460px) {
+  .stats-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats-3 > .stat:last-child { grid-column: span 2; }
+}
 .stat {
   background: var(--surface); border: 1px solid var(--rule);
   border-radius: var(--r-md); padding: 12px 14px; position: relative; overflow: hidden;
