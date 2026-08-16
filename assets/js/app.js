@@ -1,5 +1,5 @@
 /* ============================================================
-   app.js — antarmuka ERDKK FORGE
+   app.js — antarmuka Projekt-Fer
    ============================================================ */
 
 import {
@@ -9,6 +9,7 @@ import {
   state, load, emit, onChange, uid, cleanKtp, num, numLuas, txt, upper, fmt,
   emptyPetani, normalizePetani, dosisFor, komoditasList,
   recalcMt, recalcPetani, recalcAll, validatePetani, validateAll, summary,
+  poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
@@ -44,7 +45,7 @@ const readFile = (file) => new Promise((res, rej) => {
 });
 
 /* ── tema ────────────────────────────────────────────────── */
-const THEME_KEY = 'erdkk-forge:theme';
+const THEME_KEY = 'projekt-fer:theme';
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
   $('#btnTheme').innerHTML = `<i class="ti ti-${t === 'dark' ? 'sun' : 'moon'}"></i>`;
@@ -61,6 +62,7 @@ function go(view) {
   if (view === 'periksa') renderPeriksa();
   if (view === 'ekspor') renderEkspor();
   if (view === 'dosis') renderDosis();
+  if (view === 'poktan') renderPoktan();
   if (view === 'setelan') fillSetelan();
 }
 $$('.nav-item').forEach((b) => (b.onclick = () => go(b.dataset.view)));
@@ -384,6 +386,15 @@ $('#form').addEventListener('input', (e) => {
   }
   if (t.id === 'fSubsektor') editing.subsektor = t.value;
 
+  // nama poktan dikenal → ID poktan ikut terisi
+  if (t.name === 'namaPoktan') {
+    const id = txt(state.poktanId[upper(t.value)]);
+    if (id && !txt(editing.idPoktan)) {
+      editing.idPoktan = id;
+      $('#form').idPoktan.value = id;
+    }
+  }
+
   const iKom = t.dataset.mtKom, iLuas = t.dataset.mtLuas, iPup = t.dataset.mtPupuk;
 
   if (iKom != null) {
@@ -610,6 +621,118 @@ $('#impJalan').onclick = () => {
 };
 
 /* ============================================================
+   ID POKTAN
+   ============================================================ */
+
+function renderPoktan() {
+  const list = poktanRingkas();
+  const belum = list.filter((o) => !o.id && !o.idTerpakai.length);
+
+  $('#poktanKosong').innerHTML = !list.length
+    ? `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div><b>Belum ada nama poktan di data</b>Impor database poktan lebih dulu.</div></div>`
+    : belum.length
+      ? `<div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div><b>${belum.length} dari ${list.length} kelompok belum punya ID</b>
+          Isi kolom ID Poktan di bawah, lalu tekan <b>Terapkan ke Semua Baris</b>.</div></div>`
+      : `<div class="alert alert-ok"><i class="ti ti-circle-check"></i><div><b>Seluruh ${list.length} kelompok sudah punya ID Poktan</b></div></div>`;
+
+  $('#tbodyPoktan').innerHTML = list.map((o, i) => {
+    const efektif = o.id || o.idTerpakai[0] || '';
+    const status = o.id
+      ? '<span class="tag tag-moss">dipetakan</span>'
+      : o.idTerpakai.length === 1 ? '<span class="tag tag-teal">dari data</span>'
+      : o.idTerpakai.length > 1 ? `<span class="tag tag-amber">${o.idTerpakai.length} ID berbeda</span>`
+      : '<span class="tag tag-coral">kosong</span>';
+    return `<tr data-poktan="${esc(o.nama)}">
+      <td class="mono muted">${i + 1}</td>
+      <td><b>${esc(o.nama)}</b></td>
+      <td class="num">${fmt(o.anggota)}</td>
+      <td class="num">${fmt(o.luas, 2)}</td>
+      <td><input type="text" class="mono" data-poktan-id="${esc(o.nama)}"
+            value="${esc(efektif)}" placeholder="mis. 1048014" /></td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6"><div class="tbl-empty"><i class="ti ti-users-off"></i><b>Belum ada kelompok tani</b>Nama poktan diambil dari kolom "Nama Poktan" saat impor.</div></td></tr>`;
+
+  $('#badgePoktan').textContent = list.length;
+  $('#badgePoktan').classList.toggle('warn', belum.length > 0);
+}
+
+$('#tbodyPoktan').addEventListener('input', (e) => {
+  const nama = e.target.dataset.poktanId;
+  if (nama == null) return;
+  const v = txt(e.target.value);
+  if (v) state.poktanId[nama] = v; else delete state.poktanId[nama];
+  emit();
+});
+
+$('#btnPoktanTerap').onclick = () => {
+  const list = poktanRingkas();
+  if (!list.length) return toast('Belum ada data poktan', 'warn');
+  const adaId = state.petani.some((p) => txt(p.idPoktan));
+  const timpa = adaId
+    ? confirm('Sebagian baris sudah punya ID Poktan.\n\nOK  = timpa dengan ID dari tabel ini\nBatal = hanya isi yang masih kosong')
+    : false;
+  const n = terapkanPoktanId({ timpa });
+  emit(); renderPoktan();
+  toast(n ? `ID Poktan diterapkan ke ${fmt(n)} baris` : 'Tidak ada baris yang perlu diubah', n ? 'ok' : 'warn');
+};
+
+$('#btnPoktanTempel').onclick = () => {
+  const list = poktanRingkas();
+  if (!list.length) return toast('Belum ada data poktan', 'warn');
+  const contoh = list.slice(0, 3).map((o) => `${o.nama}\t${o.id || ''}`).join('\n');
+  const teks = prompt(
+    `Tempel daftar "NAMA POKTAN <tab atau ;> ID" — satu baris per kelompok.\n` +
+    `Bisa langsung disalin dari Excel.\n\nContoh:\n${contoh}`, '');
+  if (teks == null) return;
+
+  const namaAda = new Map(list.map((o) => [o.nama, true]));
+  let cocok = 0, asing = [];
+  teks.split(/\r?\n/).forEach((baris) => {
+    const bagian = baris.split(/\t|;|\||,(?=\s*\d)/).map((x) => txt(x));
+    if (bagian.length < 2) return;
+    const nama = upper(bagian[0]);
+    const id = txt(bagian[bagian.length - 1]);
+    if (!nama || !id) return;
+    if (namaAda.has(nama)) { state.poktanId[nama] = id; cocok++; }
+    else asing.push(nama);
+  });
+  emit(); renderPoktan();
+  toast(`${cocok} kelompok terisi${asing.length ? ` · ${asing.length} nama tidak dikenali` : ''}`,
+    cocok ? 'ok' : 'warn');
+};
+
+$('#btnPoktanFile').onclick = () => $('#filePoktan').click();
+$('#filePoktan').onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  try {
+    const wb = readWorkbook(await readFile(file));
+    const namaAda = new Set(poktanRingkas().map((o) => o.nama));
+    let cocok = 0;
+    for (const s of wb.SheetNames) {
+      const m = sheetToMatrix(wb, s);
+      const hr = guessHeaderRow(m);
+      const heads = (m[hr] || []).map((h) => txt(h).toLowerCase());
+      const iNama = heads.findIndex((h) => /nama\s*poktan|nama\s*kelompok|poktan|kelompok/.test(h));
+      const iId = heads.findIndex((h) => /id\s*poktan|idpoktan|kode\s*poktan|id\s*kelompok/.test(h));
+      if (iNama < 0 || iId < 0) continue;
+      m.slice(hr + 1).forEach((r) => {
+        const nama = upper(r[iNama]), id = txt(r[iId]);
+        if (nama && id && namaAda.has(nama)) { state.poktanId[nama] = id; cocok++; }
+      });
+      if (cocok) break;
+    }
+    if (!cocok) return toast('Tidak menemukan pasangan kolom "Nama Poktan" dan "ID Poktan"', 'err');
+    emit(); renderPoktan();
+    toast(`${cocok} ID poktan dimuat dari berkas`);
+  } catch (err) {
+    console.error(err);
+    toast('Gagal membaca berkas: ' + err.message, 'err');
+  }
+};
+
+/* ============================================================
    DOSIS
    ============================================================ */
 
@@ -710,6 +833,8 @@ function renderPeriksa() {
     { k: 'Tanpa Catatan', v: fmt(bersih), c: 'var(--teal)' },
   ].map((t) => `<div class="stat" style="--accent:${t.c}"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}</div></div>`).join('');
 
+  renderDup();
+
   const filter = $('#fIssue').value;
   const items = [];
   state.petani.forEach((p, ix) => {
@@ -728,6 +853,54 @@ function renderPeriksa() {
     </div>`).join('')
     : `<div class="tbl-empty"><i class="ti ti-circle-check"></i><b>Tidak ada temuan</b>${state.petani.length ? 'Seluruh data lolos pemeriksaan.' : 'Belum ada data untuk diperiksa.'}</div>`;
 }
+
+function renderDup() {
+  const grup = nikGanda();
+  $('#cardDup').hidden = !grup.length;
+  if (!grup.length) return;
+
+  const barisTerdampak = grup.reduce((s, g) => s + g.rows.length, 0);
+  const batas = num(state.settings.batasLuas) || 0;
+  const lebih = grup.filter((g) => {
+    const t = g.rows.reduce((s, p) => s + numLuas(p.mt[0].luas), 0);
+    return batas > 0 && t > batas;
+  });
+
+  $('#dupRingkas').innerHTML = `
+    <div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div>
+      <b>${fmt(grup.length)} NIK muncul lebih dari sekali (${fmt(barisTerdampak)} baris)</b>
+      Portal e-RDKK menolak NIK ganda. Menggabungkan akan menyatukan tiap NIK menjadi satu baris
+      dengan luas tiap musim tanam dijumlahkan, lalu pupuk dihitung ulang.
+      ${lebih.length ? `<br><b>${lebih.length} NIK akan melebihi batas ${batas} Ha</b> setelah digabung — periksa baris tersebut sesudahnya.` : ''}
+    </div></div>`;
+
+  $('#tbodyDup').innerHTML = grup.slice(0, 60).map((g) => {
+    const total = g.rows.reduce((s, p) => s + numLuas(p.mt[0].luas), 0);
+    return `<tr>
+      <td class="mono nowrap">${esc(g.ktp)}</td>
+      <td>${esc(g.rows[0].namaPetani || '—')}</td>
+      <td>${g.rows.map((p) => esc(p.namaPoktan || '—')).join(' + ')}</td>
+      <td class="num">${g.rows.map((p) => fmt(numLuas(p.mt[0].luas), 2)).join(' + ')}</td>
+      <td class="num"><b>${fmt(total, 2)}</b></td>
+    </tr>`;
+  }).join('') + (grup.length > 60
+    ? `<tr><td colspan="5" class="muted" style="text-align:center">…dan ${grup.length - 60} NIK lainnya</td></tr>` : '');
+}
+
+$('#btnGabungNik').onclick = () => {
+  const grup = nikGanda();
+  if (!grup.length) return toast('Tidak ada NIK ganda', 'warn');
+  if (!confirm(`Gabungkan ${grup.length} NIK ganda menjadi masing-masing satu baris?\n\n` +
+    `Luas tiap musim tanam dijumlahkan dan pupuk dihitung ulang.\n` +
+    `${grup.reduce((s, g) => s + g.rows.length, 0) - grup.length} baris akan dihapus.\n\n` +
+    `Tindakan ini tidak bisa dibatalkan — unduh cadangan lebih dulu bila perlu.`)) return;
+
+  const r = gabungNikGanda();
+  emit(); renderPeriksa();
+  toast(`${r.digabung} NIK digabung · ${r.dihapus} baris dihapus` +
+    (r.lebihBatas.length ? ` · ${r.lebihBatas.length} melebihi batas luas` : ''),
+    r.lebihBatas.length ? 'warn' : 'ok');
+};
 
 $('#fIssue').onchange = renderPeriksa;
 $('#issueList').addEventListener('click', (e) => {
@@ -875,7 +1048,8 @@ $('#btnReset').onclick = () => {
   state.petani = [];
   state.dosis = DOSIS_DEFAULT.map((d) => ({ ...d }));
   state.settings = { ...SETTINGS_DEFAULT };
-  emit(); fillSetelan(); renderDosis(); go('data');
+  state.poktanId = {};
+  emit(); fillSetelan(); renderDosis(); renderPoktan(); go('data');
   toast('Semua data dihapus');
 };
 
@@ -890,6 +1064,9 @@ function renderAll() {
   badge.classList.toggle('warn', vres.errors > 0);
   fillFilterOptions();
   renderTable();
+  const belumId = poktanRingkas().filter((o) => !o.id && !o.idTerpakai.length).length;
+  $('#badgePoktan').textContent = poktanRingkas().length;
+  $('#badgePoktan').classList.toggle('warn', belumId > 0);
   if ($('#view-periksa').classList.contains('active')) renderPeriksa();
   if ($('#view-ekspor').classList.contains('active')) renderEkspor();
 }

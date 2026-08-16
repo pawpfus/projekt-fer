@@ -4,7 +4,7 @@
 
 import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PUPUK } from './schema.js';
 
-const KEY = 'erdkk-forge:v1';
+const KEY = 'projekt-fer:v1';
 
 /* ── util ────────────────────────────────────────────────── */
 
@@ -70,6 +70,8 @@ export const state = {
   dosis: DOSIS_DEFAULT.map((d) => ({ ...d })),
   dosisMeta: { ...DOSIS_META_DEFAULT },
   settings: { ...SETTINGS_DEFAULT },
+  /** nama poktan (huruf besar) → ID poktan, untuk database tanpa kolom ID */
+  poktanId: {},
 };
 
 const subs = new Set();
@@ -81,6 +83,7 @@ export function save() {
     localStorage.setItem(KEY, JSON.stringify({
       petani: state.petani, dosis: state.dosis,
       dosisMeta: state.dosisMeta, settings: state.settings,
+      poktanId: state.poktanId,
     }));
   } catch (e) {
     console.warn('Gagal menyimpan ke localStorage', e);
@@ -96,6 +99,7 @@ export function load() {
     if (Array.isArray(d.dosis) && d.dosis.length) state.dosis = d.dosis;
     if (d.dosisMeta) state.dosisMeta = { ...DOSIS_META_DEFAULT, ...d.dosisMeta };
     if (d.settings) state.settings = { ...SETTINGS_DEFAULT, ...d.settings };
+    if (d.poktanId && typeof d.poktanId === 'object') state.poktanId = d.poktanId;
     return true;
   } catch (e) {
     console.warn('Gagal memuat data tersimpan', e);
@@ -215,6 +219,95 @@ export function validateAll() {
     issues.forEach((i) => (i.level === 'error' ? errors++ : warns++));
   });
   return { map, errors, warns, badRows: [...map.values()].filter((v) => v.some((i) => i.level === 'error')).length };
+}
+
+/* ── ID poktan ───────────────────────────────────────────── */
+
+/** Daftar kelompok yang ada di data, lengkap dengan jumlah anggota & luas. */
+export function poktanRingkas() {
+  const m = new Map();
+  state.petani.forEach((p) => {
+    const nama = upper(p.namaPoktan);
+    if (!nama) return;
+    const o = m.get(nama) || { nama, anggota: 0, luas: 0, idTerpakai: new Set() };
+    o.anggota++;
+    o.luas += numLuas(p.mt[0].luas);
+    if (txt(p.idPoktan)) o.idTerpakai.add(txt(p.idPoktan));
+    m.set(nama, o);
+  });
+  return [...m.values()]
+    .map((o) => ({ ...o, idTerpakai: [...o.idTerpakai], id: txt(state.poktanId[o.nama]) }))
+    .sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
+}
+
+/** Isi kolom ID Poktan pada tiap petani dari peta nama → ID.
+ *  @param timpa true = tulis ulang ID yang sudah ada */
+export function terapkanPoktanId({ timpa = false } = {}) {
+  let n = 0;
+  state.petani.forEach((p) => {
+    const id = txt(state.poktanId[upper(p.namaPoktan)]);
+    if (!id) return;
+    if (!timpa && txt(p.idPoktan)) return;
+    if (txt(p.idPoktan) === id) return;
+    p.idPoktan = id;
+    n++;
+  });
+  return n;
+}
+
+/* ── NIK ganda ───────────────────────────────────────────── */
+
+/** Kelompokkan baris yang NIK-nya sama (≥2 baris). */
+export function nikGanda() {
+  const m = new Map();
+  state.petani.forEach((p) => {
+    const k = cleanKtp(p.ktp);
+    if (!k) return;
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(p);
+  });
+  return [...m.entries()].filter(([, v]) => v.length > 1).map(([ktp, rows]) => ({ ktp, rows }));
+}
+
+/** Satukan baris ber-NIK sama menjadi satu, luas tiap MT dijumlahkan.
+ *  Baris pertama jadi induk; nama poktan lain dicatat agar tidak hilang. */
+export function gabungNikGanda() {
+  const grup = nikGanda();
+  if (!grup.length) return { digabung: 0, dihapus: 0, lebihBatas: [] };
+
+  const buang = new Set();
+  const lebihBatas = [];
+  const batas = num(state.settings.batasLuas) || 0;
+
+  grup.forEach(({ rows }) => {
+    const induk = rows[0];
+    const lain = rows.slice(1);
+
+    [0, 1, 2].forEach((i) => {
+      const total = rows.reduce((s, p) => s + numLuas(p.mt[i].luas), 0);
+      if (total <= 0) return;
+      if (!upper(induk.mt[i].komoditas)) {
+        const sumber = rows.find((p) => upper(p.mt[i].komoditas));
+        if (sumber) induk.mt[i].komoditas = upper(sumber.mt[i].komoditas);
+      }
+      induk.mt[i].luas = +total.toFixed(4);
+      induk.mt[i].manual = false;
+    });
+
+    const poktanLain = [...new Set(lain.map((p) => upper(p.namaPoktan)).filter((n) => n && n !== upper(induk.namaPoktan)))];
+    if (poktanLain.length) induk.namaPoktanGabung = poktanLain.join(' + ');
+
+    lain.forEach((p) => buang.add(p.id));
+    recalcPetani(induk, { force: true });
+
+    if (batas > 0) {
+      const maks = Math.max(...induk.mt.map((m) => numLuas(m.luas)));
+      if (maks > batas) lebihBatas.push({ ktp: cleanKtp(induk.ktp), nama: induk.namaPetani, luas: maks });
+    }
+  });
+
+  state.petani = state.petani.filter((p) => !buang.has(p.id));
+  return { digabung: grup.length, dihapus: buang.size, lebihBatas };
 }
 
 /* ── ringkasan ───────────────────────────────────────────── */

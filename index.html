@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>ERDKK FORGE — Generator Template ERDKK</title>
+<title>Projekt-Fer — Generator Template ERDKK</title>
 <meta name="description" content="Isi template ERDKK secara otomatis dari database poktan. Dosis pupuk dihitung dari luas lahan, hasil siap unggah ke erdkk25.pertanian.go.id." />
 <meta name="theme-color" content="#014421" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23014421'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='%23fff' text-anchor='middle'%3EE%3C/text%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23014421'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='%23fff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -18,9 +18,9 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand-mark">EF</div>
+    <div class="brand-mark">PF</div>
     <div class="brand-text">
-      <span class="brand-name">ERDKK FORGE</span>
+      <span class="brand-name">Projekt-Fer</span>
       <span class="brand-sub" id="brandSub">Generator template e-RDKK</span>
     </div>
   </div>
@@ -33,6 +33,7 @@
 <nav class="nav" id="nav">
   <button class="nav-item active" data-view="data"><i class="ti ti-table"></i>Data Petani <span class="nav-badge" id="badgeData">0</span></button>
   <button class="nav-item" data-view="impor"><i class="ti ti-file-upload"></i>Impor Database</button>
+  <button class="nav-item" data-view="poktan"><i class="ti ti-users-group"></i>ID Poktan <span class="nav-badge" id="badgePoktan">0</span></button>
   <button class="nav-item" data-view="dosis"><i class="ti ti-flask"></i>Dosis Pupuk <span class="nav-badge" id="badgeDosis">0</span></button>
   <button class="nav-item" data-view="periksa"><i class="ti ti-shield-check"></i>Periksa <span class="nav-badge" id="badgeIssue">0</span></button>
   <button class="nav-item" data-view="ekspor"><i class="ti ti-download"></i>Ekspor</button>
@@ -162,6 +163,38 @@
     </div>
   </section>
 
+  <!-- ══════════ ID POKTAN ══════════ -->
+  <section class="view" id="view-poktan">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-users-group"></i>ID Poktan per Kelompok</div>
+        <div class="topbar-spacer"></div>
+        <button class="btn btn-sm" id="btnPoktanTempel"><i class="ti ti-clipboard"></i>Tempel Massal</button>
+        <button class="btn btn-sm" id="btnPoktanFile"><i class="ti ti-file-import"></i>Impor dari Berkas</button>
+        <button class="btn btn-sm btn-primary" id="btnPoktanTerap"><i class="ti ti-check"></i>Terapkan ke Semua Baris</button>
+        <input type="file" id="filePoktan" accept=".xlsx,.xls,.csv" hidden />
+      </div>
+      <div class="card-body stack">
+        <div class="alert alert-info">
+          <i class="ti ti-info-circle"></i>
+          <div><b>Untuk database yang tidak memuat kolom ID Poktan</b>
+            Isi ID sekali per nama kelompok, lalu <b>Terapkan ke Semua Baris</b> — seluruh petani di kelompok
+            tersebut ikut terisi. ID ini juga otomatis dipakai saat Anda menambah petani baru.</div>
+        </div>
+        <div id="poktanKosong"></div>
+        <div class="tbl-scroll" style="max-height:56vh">
+          <table class="tbl" id="tblPoktan">
+            <thead><tr>
+              <th style="width:34px">#</th><th>Nama Poktan</th><th class="num">Anggota</th>
+              <th class="num">Luas MT1 (Ha)</th><th style="width:200px">ID Poktan</th><th>Status</th>
+            </tr></thead>
+            <tbody id="tbodyPoktan"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ══════════ DOSIS ══════════ -->
   <section class="view" id="view-dosis">
     <div class="card">
@@ -211,6 +244,22 @@
   <!-- ══════════ PERIKSA ══════════ -->
   <section class="view" id="view-periksa">
     <div class="stats" id="statsPeriksa"></div>
+    <div class="card" id="cardDup" hidden>
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-users-minus"></i>NIK Ganda</div>
+        <div class="topbar-spacer"></div>
+        <button class="btn btn-sm btn-primary" id="btnGabungNik"><i class="ti ti-arrow-merge"></i>Gabungkan (luas dijumlahkan)</button>
+      </div>
+      <div class="card-body stack">
+        <div id="dupRingkas"></div>
+        <div class="tbl-scroll" style="max-height:280px;border:1px solid var(--rule);border-radius:var(--r-md)">
+          <table class="tbl" id="tblDup">
+            <thead><tr><th>NIK</th><th>Nama</th><th>Terdaftar di</th><th class="num">Luas MT1</th><th class="num">Gabungan</th></tr></thead>
+            <tbody id="tbodyDup"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head">
         <div class="card-title"><i class="ti ti-shield-check"></i>Hasil Pemeriksaan</div>

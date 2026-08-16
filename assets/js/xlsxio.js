@@ -92,13 +92,18 @@ export function rowsToPetani(matrix, headerRow, map, opts = {}) {
       subsektor: upper(get(row, 'subsektor')),
       mt: [0, 1, 2].map((i) => {
         const kom = upper(get(row, `mt${i + 1}Komoditas`));
+        const luas = numLuas(get(row, `mt${i + 1}Luas`));
+        // komoditas berluas 0 = musim tanam kosong (pola umum "PADI · 0" pada MT3)
         return {
           ...emptyMt(),
-          komoditas: kom === '-' ? '' : kom,
-          luas: numLuas(get(row, `mt${i + 1}Luas`)),
+          komoditas: kom === '-' || luas <= 0 ? '' : kom,
+          luas: luas > 0 ? luas : 0,
         };
       }),
     };
+
+    // database tanpa kolom ID Poktan: ambil dari peta nama poktan → ID
+    if (!p.idPoktan && p.namaPoktan) p.idPoktan = txt(state.poktanId[upper(p.namaPoktan)]);
 
     // baris tanpa identitas & tanpa komoditas apa pun dianggap sampah
     const kosong = !p.ktp && !p.namaPetani && !p.mt.some((m) => m.komoditas);

@@ -1,4 +1,4 @@
-# ERDKK FORGE
+# Projekt-Fer
 
 Generator template e-RDKK untuk diunggah ke **https://erdkk25.pertanian.go.id**.
 
@@ -13,6 +13,11 @@ server dan tidak ada data yang dikirim ke mana pun.
   ke atas (437,5 → 438) sama seperti berkas ERDKK resmi.
 - **Tambah petani satu per satu** lewat formulir, lengkap dengan pratinjau pupuk
   yang berubah seketika dan tombol *Simpan & Baru* untuk entri beruntun.
+- **ID Poktan per kelompok** — untuk database yang tidak memuat kolom ID Poktan.
+  Isi ID sekali per nama kelompok (ketik, tempel massal dari Excel, atau impor berkas),
+  lalu terapkan ke seluruh baris sekaligus.
+- **Gabungkan NIK ganda** — satu orang yang terdaftar di dua kelompok disatukan
+  menjadi satu baris, luas tiap musim tanam dijumlahkan dan pupuk dihitung ulang.
 - **Tabel dosis** bisa disunting, diimpor dari berkas `Dosis_<tahun>_..._<kecamatan>.xlsx`,
   atau dikembalikan ke bawaan.
 - **Pemeriksaan** sebelum ekspor: NIK bukan 16 digit, NIK ganda, kolom wajib kosong,
