@@ -9,12 +9,12 @@ import {
   state, load, emit, onChange, uid, cleanKtp, num, numLuas, txt, upper, fmt,
   emptyPetani, normalizePetani, dosisFor, komoditasList,
   recalcMt, recalcPetani, recalcAll, validatePetani, validateAll, summary,
-  poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda,
+  poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda, cocokkanPoktan,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
   parseDosisSheet, buildTemplateWorkbook, downloadWorkbook,
-  buildBackupWorkbook, backupToPetani,
+  buildBackupWorkbook, backupToPetani, bacaDaftarPoktan,
 } from './xlsxio.js';
 
 /* ── helper DOM ──────────────────────────────────────────── */
@@ -624,9 +624,31 @@ $('#impJalan').onclick = () => {
    ID POKTAN
    ============================================================ */
 
+let lastImporPoktan = null;
+
+function renderPoktanLaporan() {
+  const box = $('#poktanLaporan');
+  const r = lastImporPoktan;
+  if (!r) { box.innerHTML = ''; return; }
+  box.innerHTML = [
+    `<div class="alert alert-ok"><i class="ti ti-circle-check"></i><div>
+       <b>${fmt(r.cocok)} kelompok terisi dari ${fmt(r.kandidat)} baris daftar</b>
+       Nama dicocokkan tanpa memandang huruf besar/kecil, spasi, dan tanda baca.</div></div>`,
+    r.ganda.length ? `<div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div>
+       <b>${r.ganda.length} nama punya lebih dari satu kandidat ID — periksa manual</b>
+       ${r.ganda.map((g) => `${esc(g.nama)} → dipakai <b>${esc(g.pilihan[0].id)}</b> (${esc(g.pilihan[0].nama)});
+         alternatif: ${g.pilihan.slice(1).map((p) => `${esc(p.id)} (${esc(p.nama)})`).join(', ')}`).join('<br>')}
+       </div></div>` : '',
+    r.takKetemu.length ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div>
+       <b>${r.takKetemu.length} kelompok tidak ada di daftar</b>
+       ${r.takKetemu.map((n) => esc(n)).join(', ')}</div></div>` : '',
+  ].join('');
+}
+
 function renderPoktan() {
   const list = poktanRingkas();
   const belum = list.filter((o) => !o.id && !o.idTerpakai.length);
+  renderPoktanLaporan();
 
   $('#poktanKosong').innerHTML = !list.length
     ? `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div><b>Belum ada nama poktan di data</b>Impor database poktan lebih dulu.</div></div>`
@@ -708,24 +730,27 @@ $('#filePoktan').onchange = async (e) => {
   if (!file) return;
   try {
     const wb = readWorkbook(await readFile(file));
-    const namaAda = new Set(poktanRingkas().map((o) => o.nama));
-    let cocok = 0;
-    for (const s of wb.SheetNames) {
-      const m = sheetToMatrix(wb, s);
-      const hr = guessHeaderRow(m);
-      const heads = (m[hr] || []).map((h) => txt(h).toLowerCase());
-      const iNama = heads.findIndex((h) => /nama\s*poktan|nama\s*kelompok|poktan|kelompok/.test(h));
-      const iId = heads.findIndex((h) => /id\s*poktan|idpoktan|kode\s*poktan|id\s*kelompok/.test(h));
-      if (iNama < 0 || iId < 0) continue;
-      m.slice(hr + 1).forEach((r) => {
-        const nama = upper(r[iNama]), id = txt(r[iId]);
-        if (nama && id && namaAda.has(nama)) { state.poktanId[nama] = id; cocok++; }
-      });
-      if (cocok) break;
+    const kandidat = wb.SheetNames.flatMap((s) => bacaDaftarPoktan(sheetToMatrix(wb, s)));
+    if (!kandidat.length) {
+      return toast('Tidak menemukan pasangan kolom nama kelompok dan ID poktan', 'err');
     }
-    if (!cocok) return toast('Tidak menemukan pasangan kolom "Nama Poktan" dan "ID Poktan"', 'err');
+
+    const namaAda = poktanRingkas().map((o) => o.nama);
+    if (!namaAda.length) return toast('Belum ada data poktan — impor database dulu', 'warn');
+
+    const { peta, ganda, takKetemu } = cocokkanPoktan(namaAda, kandidat);
+    const cocok = Object.keys(peta).length;
+    if (!cocok) {
+      return toast(`${kandidat.length} baris terbaca, tapi tidak ada nama yang cocok dengan data Anda`, 'err');
+    }
+    Object.assign(state.poktanId, peta);
     emit(); renderPoktan();
-    toast(`${cocok} ID poktan dimuat dari berkas`);
+
+    lastImporPoktan = { kandidat: kandidat.length, cocok, ganda, takKetemu };
+    renderPoktanLaporan();
+    toast(`${cocok} dari ${namaAda.length} kelompok cocok` +
+      (takKetemu.length ? ` · ${takKetemu.length} belum ketemu` : ''),
+      takKetemu.length || ganda.length ? 'warn' : 'ok');
   } catch (err) {
     console.error(err);
     toast('Gagal membaca berkas: ' + err.message, 'err');

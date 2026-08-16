@@ -240,6 +240,52 @@ export function poktanRingkas() {
     .sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
 }
 
+/** Normalisasi nama kelompok untuk pencocokan: huruf besar, tanda baca jadi spasi. */
+export function normPoktan(s) {
+  return String(s ?? '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Cocokkan daftar nama kelompok dengan daftar kandidat {nama, id}.
+ *  Dua tingkat: sama persis setelah dinormalisasi, lalu abaikan spasi.
+ *  Kandidat berawalan "P3A" dilewati kecuali yang dicari juga P3A —
+ *  P3A itu perkumpulan pemakai air, bukan kelompok tani.
+ *  @returns {{peta:Object, ganda:Array, takKetemu:Array}} */
+export function cocokkanPoktan(namaList, kandidat) {
+  const bersih = kandidat
+    .map((k) => ({ ...k, n1: normPoktan(k.nama), n2: normPoktan(k.nama).replace(/ /g, '') }))
+    .filter((k) => k.n1 && txt(k.id));
+
+  const peta = {}, ganda = [], takKetemu = [];
+
+  namaList.forEach((nama) => {
+    const q1 = normPoktan(nama), q2 = q1.replace(/ /g, '');
+    const p3a = q1.startsWith('P3A ');
+    const pakai = bersih.filter((k) => p3a || !k.n1.startsWith('P3A '));
+
+    const tepat = pakai.filter((k) => k.n1 === q1);
+    const longgar = pakai.filter((k) => k.n2 === q2);
+    const hit = tepat.length ? tepat : longgar;
+
+    if (!hit.length) { takKetemu.push(nama); return; }
+    peta[upper(nama)] = txt(hit[0].id);
+
+    // laporkan bila ada kandidat lain yang namanya praktis sama
+    const lain = longgar.filter((k) => txt(k.id) !== txt(hit[0].id));
+    if (hit.length > 1 || lain.length) {
+      const pilihan = [hit[0], ...hit.slice(1), ...lain]
+        .filter((k, i, a) => a.findIndex((x) => txt(x.id) === txt(k.id)) === i)
+        .map((k) => ({ nama: k.nama, id: txt(k.id) }));
+      ganda.push({ nama, pilihan });
+    }
+  });
+
+  return { peta, ganda, takKetemu };
+}
+
 /** Isi kolom ID Poktan pada tiap petani dari peta nama → ID.
  *  @param timpa true = tulis ulang ID yang sudah ada */
 export function terapkanPoktanId({ timpa = false } = {}) {

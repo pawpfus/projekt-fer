@@ -177,6 +177,41 @@ export function parseDosisSheet(matrix) {
   return { rows, meta };
 }
 
+/* ── BACA DAFTAR ID POKTAN ───────────────────────────────── */
+
+const RE_NAMA_POKTAN = /^(nama\s*)?(poktan|kelompok\s*tani|kelompok|nama\s*kelompok)$/;
+const RE_ID_POKTAN   = /^(id\s*poktan|idpoktan|id\s*kelompok|kode\s*poktan|id)$/;
+
+/** Kumpulkan pasangan {nama, id} dari sebuah sheet.
+ *  Setiap baris diuji sebagai baris judul, jadi beberapa tabel dalam satu
+ *  sheet (mis. daftar Simluhtan yang ditempel di bawah) tetap terbaca. */
+export function bacaDaftarPoktan(matrix) {
+  const hasil = [];
+  const dipakai = new Set();
+
+  for (let r = 0; r < matrix.length; r++) {
+    const head = (matrix[r] || []).map((c) => normHeader(c));
+    const iNama = head.findIndex((h) => RE_NAMA_POKTAN.test(h));
+    const iId = head.findIndex((h) => RE_ID_POKTAN.test(h));
+    if (iNama < 0 || iId < 0 || iNama === iId) continue;
+
+    for (let k = r + 1; k < matrix.length; k++) {
+      const row = matrix[k] || [];
+      // berhenti bila bertemu baris judul tabel berikutnya
+      const h2 = row.map((c) => normHeader(c));
+      if (h2.some((h) => RE_NAMA_POKTAN.test(h)) && h2.some((h) => RE_ID_POKTAN.test(h))) break;
+
+      const nama = txt(row[iNama]), id = txt(row[iId]);
+      if (!nama || !id) continue;
+      const kunci = upper(nama) + ' ' + id;
+      if (dipakai.has(kunci)) continue;
+      dipakai.add(kunci);
+      hasil.push({ nama, id });
+    }
+  }
+  return hasil;
+}
+
 /* ── TULIS TEMPLATE ──────────────────────────────────────── */
 
 /** Satu record petani → satu baris array sesuai urutan TEMPLATE_HEADERS. */
