@@ -155,6 +155,77 @@ export function recalcAll(opts) {
   state.petani.forEach((p) => recalcPetani(p, opts));
 }
 
+/* ── isi musim tanam massal ──────────────────────────────── */
+
+/**
+ * Isi (atau kosongkan) satu musim tanam untuk sekumpulan petani.
+ * @param {Array} list         baris yang diproses
+ * @param {object} opt
+ *   target      0|1|2                        — MT yang diisi
+ *   komoditas   nama | 'mt1' | 'mt2' | 'mt3' — sumber komoditas
+ *   luasDari    'mt1'|'mt2'|'mt3'|'tetap'|'skala' — sumber luas
+ *   luasTetap   angka (untuk 'tetap')
+ *   skala       pengali luas sumber (untuk 'skala'), sumber = luasSkalaDari
+ *   luasSkalaDari 0|1|2
+ *   hanyaKosong true = lewati MT tujuan yang sudah terisi
+ *   kosongkan   true = kosongkan MT tujuan, opsi lain diabaikan
+ * @returns {{diubah:number, dilewati:number, tanpaDosis:string[]}}
+ */
+export function isiMusimTanam(list, opt) {
+  const t = Math.max(0, Math.min(2, num(opt.target)));
+  let diubah = 0, dilewati = 0;
+  const tanpaDosis = new Set();
+
+  list.forEach((p) => {
+    const mt = p.mt[t];
+    const terisi = !!upper(mt.komoditas) && numLuas(mt.luas) > 0;
+
+    if (opt.kosongkan) {
+      if (!terisi && !upper(mt.komoditas) && !numLuas(mt.luas)) { dilewati++; return; }
+      p.mt[t] = emptyMt();
+      diubah++;
+      return;
+    }
+
+    if (opt.hanyaKosong && terisi) { dilewati++; return; }
+
+    // komoditas
+    const dariMt = { mt1: 0, mt2: 1, mt3: 2 }[opt.komoditas];
+    const kom = dariMt != null ? upper(p.mt[dariMt].komoditas) : upper(opt.komoditas);
+    if (!kom) { dilewati++; return; }
+
+    // luas
+    let luas;
+    if (opt.luasDari === 'tetap') {
+      luas = numLuas(opt.luasTetap);
+    } else if (opt.luasDari === 'skala') {
+      const src = Math.max(0, Math.min(2, num(opt.luasSkalaDari)));
+      luas = numLuas(p.mt[src].luas) * (num(opt.skala) || 0);
+    } else {
+      const src = { mt1: 0, mt2: 1, mt3: 2 }[opt.luasDari] ?? 0;
+      luas = numLuas(p.mt[src].luas);
+    }
+    luas = +Number(luas).toFixed(4);
+    if (luas <= 0) { dilewati++; return; }
+
+    mt.komoditas = kom;
+    mt.luas = luas;
+    mt.manual = false;
+    recalcMt(mt, { force: true });
+    if (!dosisFor(kom)) tanpaDosis.add(kom);
+    diubah++;
+  });
+
+  // subsektor menyusul bila sebelumnya kosong
+  list.forEach((p) => {
+    if (txt(p.subsektor)) return;
+    const d = dosisFor(p.mt[0].komoditas) || dosisFor(p.mt[1].komoditas) || dosisFor(p.mt[2].komoditas);
+    if (d) p.subsektor = upper(d.subsektor);
+  });
+
+  return { diubah, dilewati, tanpaDosis: [...tanpaDosis] };
+}
+
 /* ── validasi ────────────────────────────────────────────── */
 
 const NAMA_KOSONG = ['', '-', '0'];
@@ -170,7 +241,9 @@ export function validatePetani(p, ctx = {}) {
   const ktp = cleanKtp(p.ktp);
   if (!ktp) E('ktp', 'KTP kosong');
   else if (ktp.length !== 16) E('ktp', `KTP ${ktp.length} digit — harus 16 digit`);
-  else if (ctx.dupKtp && ctx.dupKtp.has(ktp)) E('ktp', 'KTP ganda di dalam daftar');
+  // KTP ganda dibiarkan lewat: data mengikuti database sumber, portal e-RDKK
+  // yang memutuskan menolak atau tidak. Tetap ditandai agar mudah ditelusuri.
+  else if (ctx.dupKtp && ctx.dupKtp.has(ktp)) W('ktp', 'KTP ganda di dalam daftar');
 
   if (NAMA_KOSONG.includes(txt(p.namaIbu))) E('namaIbu', 'Nama ibu kandung kosong');
   if (!txt(p.kodeDesa)) E('kodeDesa', 'Kode desa kosong');

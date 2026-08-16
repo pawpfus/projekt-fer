@@ -10,6 +10,7 @@ import {
   emptyPetani, normalizePetani, dosisFor, komoditasList,
   recalcMt, recalcPetani, recalcAll, validatePetani, validateAll, summary,
   poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda, cocokkanPoktan,
+  isiMusimTanam,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
@@ -241,6 +242,103 @@ $('#btnHapusFilter').onclick = () => {
 
 $('#btnTambah').onclick = () => openDrawer(null);
 
+/* ── isi musim tanam massal ──────────────────────────────── */
+
+const mtOpt = () => ({
+  target: +$('#mtTarget .on').dataset.t,
+  komoditas: $('#mtKom').value,
+  luasDari: $('#mtLuasDari').value,
+  luasTetap: num($('#mtLuasTetap').value),
+  skala: num($('#mtSkala').value) / 100,
+  luasSkalaDari: +$('#mtSkalaDari').value,
+  hanyaKosong: $('#mtHanyaKosong').checked,
+});
+
+const mtSasaran = () => ($('#mtCakupan .on').dataset.c === 'semua' ? state.petani : filtered());
+
+function renderMtModal() {
+  const o = mtOpt();
+  $('#mtSkalaBox').hidden = o.luasDari !== 'skala';
+  $('#mtTetapBox').hidden = o.luasDari !== 'tetap';
+
+  const list = mtSasaran();
+  const label = `MT${o.target + 1}`;
+  const terisi = list.filter((p) => upper(p.mt[o.target].komoditas) && numLuas(p.mt[o.target].luas) > 0).length;
+
+  // hitung di salinan agar pratinjau tidak mengubah data
+  const uji = JSON.parse(JSON.stringify(list)).map(normalizePetani);
+  const r = isiMusimTanam(uji, o);
+  const luasBaru = uji.reduce((s, p) => s + numLuas(p.mt[o.target].luas), 0);
+
+  $('#mtRingkas').innerHTML = `
+    <div class="section-label">Perkiraan hasil</div>
+    <div class="kv"><span>Baris disasar</span><b>${fmt(list.length)}</b></div>
+    <div class="kv"><span>${label} sudah terisi</span><b>${fmt(terisi)}</b></div>
+    <div class="kv"><span>Akan diubah</span><b>${fmt(r.diubah)}</b></div>
+    <div class="kv"><span>Dilewati</span><b>${fmt(r.dilewati)}</b></div>
+    <div class="kv"><span>Total luas ${label} sesudahnya</span><b>${fmt(luasBaru, 2)} Ha</b></div>
+    ${r.tanpaDosis.length ? `<div class="alert alert-warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i>
+      <div><b>Komoditas tanpa dosis</b>${r.tanpaDosis.map(esc).join(', ')} — pupuknya akan 0.</div></div>` : ''}
+    ${!r.diubah ? `<div class="alert alert-info" style="margin-top:10px"><i class="ti ti-info-circle"></i>
+      <div>Tidak ada baris yang berubah dengan pilihan ini.</div></div>` : ''}`;
+
+  $('#mtTerap').disabled = !r.diubah;
+}
+
+function bukaMtModal() {
+  if (!state.petani.length) return toast('Belum ada data petani', 'warn');
+  const kom = komoditasList();
+  $('#mtKom').innerHTML =
+    `<option value="mt1">Sama seperti MT1</option><option value="mt2">Sama seperti MT2</option>` +
+    `<option value="mt3">Sama seperti MT3</option>` +
+    `<option disabled>──────────</option>` +
+    kom.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  $('#mtKom').value = 'mt1';
+  renderMtModal();
+  $('#modalMt').classList.add('open');
+  $('#modalMt').setAttribute('aria-hidden', 'false');
+  $('#scrim').classList.add('open');
+}
+
+function tutupMtModal() {
+  $('#modalMt').classList.remove('open');
+  $('#modalMt').setAttribute('aria-hidden', 'true');
+  if (!$('#drawer').classList.contains('open')) $('#scrim').classList.remove('open');
+}
+
+$('#btnIsiMt').onclick = bukaMtModal;
+$('#mtTutup').onclick = tutupMtModal;
+$('#mtBatal').onclick = tutupMtModal;
+
+['#mtTarget', '#mtCakupan'].forEach((sel) => {
+  $(sel).addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$(`${sel} button`).forEach((x) => x.classList.toggle('on', x === b));
+    renderMtModal();
+  });
+});
+['#mtKom', '#mtLuasDari', '#mtLuasTetap', '#mtSkala', '#mtSkalaDari', '#mtHanyaKosong']
+  .forEach((s) => $(s).addEventListener('input', renderMtModal));
+
+$('#mtTerap').onclick = () => {
+  const o = mtOpt();
+  const list = mtSasaran();
+  const r = isiMusimTanam(list, o);
+  emit(); tutupMtModal();
+  toast(`MT${o.target + 1}: ${fmt(r.diubah)} baris diisi` + (r.dilewati ? ` · ${fmt(r.dilewati)} dilewati` : ''));
+};
+
+$('#mtKosongkan').onclick = () => {
+  const o = mtOpt();
+  const list = mtSasaran();
+  const label = `MT${o.target + 1}`;
+  if (!confirm(`Kosongkan ${label} pada ${list.length} baris?\n\nKomoditas, luas, dan pupuknya dihapus.`)) return;
+  const r = isiMusimTanam(list, { target: o.target, kosongkan: true });
+  emit(); tutupMtModal();
+  toast(`${label} dikosongkan pada ${fmt(r.diubah)} baris`);
+};
+
 /* ============================================================
    DRAWER FORM
    ============================================================ */
@@ -371,9 +469,14 @@ function closeDrawer() {
 
 $('#drawerClose').onclick = closeDrawer;
 $('#btnBatal').onclick = closeDrawer;
-$('#scrim').onclick = closeDrawer;
+$('#scrim').onclick = () => {
+  if ($('#modalMt').classList.contains('open')) tutupMtModal();
+  else closeDrawer();
+};
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && $('#drawer').classList.contains('open')) closeDrawer();
+  if (e.key !== 'Escape') return;
+  if ($('#modalMt').classList.contains('open')) tutupMtModal();
+  else if ($('#drawer').classList.contains('open')) closeDrawer();
 });
 
 $('#form').addEventListener('input', (e) => {
@@ -892,11 +995,12 @@ function renderDup() {
   });
 
   $('#dupRingkas').innerHTML = `
-    <div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div>
+    <div class="alert alert-info"><i class="ti ti-info-circle"></i><div>
       <b>${fmt(grup.length)} NIK muncul lebih dari sekali (${fmt(barisTerdampak)} baris)</b>
-      Portal e-RDKK menolak NIK ganda. Menggabungkan akan menyatukan tiap NIK menjadi satu baris
-      dengan luas tiap musim tanam dijumlahkan, lalu pupuk dihitung ulang.
-      ${lebih.length ? `<br><b>${lebih.length} NIK akan melebihi batas ${batas} Ha</b> setelah digabung — periksa baris tersebut sesudahnya.` : ''}
+      Ini <b>bukan galat</b> — data diekspor apa adanya sesuai database, biar portal e-RDKK yang menilai.
+      Tombol di bawah hanya opsi bila Anda ingin menyatukannya: tiap NIK jadi satu baris,
+      luas tiap musim tanam dijumlahkan, lalu pupuk dihitung ulang.
+      ${lebih.length ? `<br><b>${lebih.length} NIK akan melebihi batas ${batas} Ha</b> bila digabung.` : ''}
     </div></div>`;
 
   $('#tbodyDup').innerHTML = grup.slice(0, 60).map((g) => {
