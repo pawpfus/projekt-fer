@@ -22,7 +22,7 @@ server dan tidak ada data yang dikirim ke mana pun.
   sebelum diterapkan, plus opsi mengosongkan satu musim tanam.
 - **Gabungkan NIK ganda** (opsional) — satu orang yang terdaftar di dua kelompok
   disatukan menjadi satu baris, luas tiap musim tanam dijumlahkan dan pupuk dihitung ulang.
-  NIK ganda **bukan galat** di aplikasi ini: data diekspor apa adanya sesuai database,
+  NIK ganda **bukan masalah** di aplikasi ini: data diekspor apa adanya sesuai database,
   biar portal e-RDKK yang menilai.
 - **Tabel dosis** bisa disunting, diimpor dari berkas `Dosis_<tahun>_..._<kecamatan>.xlsx`,
   atau dikembalikan ke bawaan.

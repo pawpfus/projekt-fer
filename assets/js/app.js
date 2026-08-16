@@ -139,7 +139,7 @@ function fillFilterOptions() {
 
 function rowChip(p) {
   const iss = vres.map.get(p.id) || [];
-  if (iss.some((i) => i.level === 'error')) return `<span class="tag tag-coral" title="${esc(iss.map((i) => i.msg).join(' · '))}">galat</span>`;
+  if (iss.some((i) => i.level === 'error')) return `<span class="tag tag-coral" title="${esc(iss.map((i) => i.msg).join(' · '))}">tidak sesuai</span>`;
   if (iss.length) return `<span class="tag tag-amber" title="${esc(iss.map((i) => i.msg).join(' · '))}">cek</span>`;
   return '';
 }
@@ -428,7 +428,7 @@ function renderFormIssues() {
   const errs = iss.filter((i) => i.level === 'error');
   const warns = iss.filter((i) => i.level === 'warn');
   box.innerHTML = [
-    errs.length ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div><b>${errs.length} galat</b>${errs.map((i) => esc(i.msg)).join('<br>')}</div></div>` : '',
+    errs.length ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div><b>${errs.length} data tidak sesuai</b>${errs.map((i) => esc(i.msg)).join('<br>')}</div></div>` : '',
     warns.length ? `<div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div><b>${warns.length} peringatan</b>${warns.map((i) => esc(i.msg)).join('<br>')}</div></div>` : '',
   ].join('');
 }
@@ -555,7 +555,7 @@ function simpan(lagi) {
   if (!editing) return;
   const iss = validatePetani(editing);
   const errs = iss.filter((i) => i.level === 'error');
-  if (errs.length && !confirm(`Masih ada ${errs.length} galat:\n\n${errs.map((e) => '• ' + e.msg).join('\n')}\n\nTetap simpan?`)) return;
+  if (errs.length && !confirm(`Masih ada ${errs.length} data tidak sesuai:\n\n${errs.map((e) => '• ' + e.msg).join('\n')}\n\nTetap simpan?`)) return;
 
   const rec = normalizePetani(editing);
   delete rec._new;
@@ -956,8 +956,8 @@ function renderPeriksa() {
   $('#statsPeriksa').innerHTML = [
     { k: 'Total Baris', v: fmt(state.petani.length), c: 'var(--ink-3)' },
     { k: 'Siap Ekspor', v: fmt(state.petani.length - vres.badRows), c: 'var(--moss)' },
-    { k: 'Baris Bergalat', v: fmt(vres.badRows), c: 'var(--coral)' },
-    { k: 'Galat', v: fmt(vres.errors), c: 'var(--coral)' },
+    { k: 'Baris Tidak Sesuai', v: fmt(vres.badRows), c: 'var(--coral)' },
+    { k: 'Tidak Sesuai', v: fmt(vres.errors), c: 'var(--coral)' },
     { k: 'Peringatan', v: fmt(vres.warns), c: 'var(--amber)' },
     { k: 'Tanpa Catatan', v: fmt(bersih), c: 'var(--teal)' },
   ].map((t) => `<div class="stat" style="--accent:${t.c}"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}</div></div>`).join('');
@@ -978,7 +978,7 @@ function renderPeriksa() {
       <span class="ix">${ix + 1}</span>
       <div class="who">${esc(p.namaPetani || '(tanpa nama)')} <span class="muted mono">${esc(p.ktp || '—')}</span>
         <small>${esc(i.msg)}</small></div>
-      <span class="tag ${i.level === 'error' ? 'tag-coral' : 'tag-amber'}">${i.level === 'error' ? 'galat' : 'peringatan'}</span>
+      <span class="tag ${i.level === 'error' ? 'tag-coral' : 'tag-amber'}">${i.level === 'error' ? 'tidak sesuai' : 'peringatan'}</span>
     </div>`).join('')
     : `<div class="tbl-empty"><i class="ti ti-circle-check"></i><b>Tidak ada temuan</b>${state.petani.length ? 'Seluruh data lolos pemeriksaan.' : 'Belum ada data untuk diperiksa.'}</div>`;
 }
@@ -998,7 +998,7 @@ function renderDup() {
   $('#dupRingkas').innerHTML = `
     <div class="alert alert-info"><i class="ti ti-info-circle"></i><div>
       <b>${fmt(grup.length)} NIK muncul lebih dari sekali (${fmt(barisTerdampak)} baris)</b>
-      Ini <b>bukan galat</b> — data diekspor apa adanya sesuai database, biar portal e-RDKK yang menilai.
+      Ini <b>bukan masalah</b> — data diekspor apa adanya sesuai database, biar portal e-RDKK yang menilai.
       Tombol di bawah hanya opsi bila Anda ingin menyatukannya: tiap NIK jadi satu baris,
       luas tiap musim tanam dijumlahkan, lalu pupuk dihitung ulang.
       ${lebih.length ? `<br><b>${lebih.length} NIK akan melebihi batas ${batas} Ha</b> bila digabung.` : ''}
@@ -1076,8 +1076,8 @@ function renderEkspor() {
       || '<p class="muted" style="font-size:12.5px">Belum ada data.</p>'}`;
 
   $('#expWarn').innerHTML = vres.badRows
-    ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div><b>${vres.badRows} baris masih bergalat</b>
-        Baris bergalat kemungkinan besar ditolak sistem e-RDKK. Buka tab <b>Periksa</b> untuk memperbaikinya, atau centang "Hanya baris tanpa galat".</div></div>`
+    ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div><b>${vres.badRows} baris belum sesuai</b>
+        Baris yang tidak sesuai kemungkinan besar ditolak sistem e-RDKK. Buka tab <b>Periksa</b> untuk memperbaikinya, atau centang "Hanya baris yang sesuai".</div></div>`
     : (state.petani.length
       ? `<div class="alert alert-ok"><i class="ti ti-circle-check"></i><div><b>Semua baris lolos pemeriksaan</b>Berkas siap diunggah.</div></div>`
       : `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div><b>Belum ada data</b>Impor database poktan atau tambahkan petani lebih dulu.</div></div>`);

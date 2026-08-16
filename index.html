@@ -57,9 +57,9 @@
           <select id="fKom" style="width:auto;min-width:130px"><option value="">Semua komoditas</option></select>
           <select id="fStatus" style="width:auto;min-width:120px">
             <option value="">Semua status</option>
-            <option value="err">Ada galat</option>
+            <option value="err">Tidak sesuai</option>
             <option value="warn">Ada peringatan</option>
-            <option value="ok">Bersih</option>
+            <option value="ok">Sesuai</option>
           </select>
         </div>
         <button class="btn btn-sm" id="btnIsiMt" title="Isi atau kosongkan musim tanam secara massal"><i class="ti ti-calendar-plus"></i>Isi MT</button>
@@ -266,8 +266,8 @@
         <div class="card-title"><i class="ti ti-shield-check"></i>Hasil Pemeriksaan</div>
         <div class="topbar-spacer"></div>
         <select id="fIssue" style="width:auto">
-          <option value="all">Galat &amp; peringatan</option>
-          <option value="error">Galat saja</option>
+          <option value="all">Tidak sesuai &amp; peringatan</option>
+          <option value="error">Tidak sesuai saja</option>
           <option value="warn">Peringatan saja</option>
         </select>
       </div>
@@ -296,7 +296,7 @@
           </div>
           <div class="stack" style="gap:9px">
             <label class="check"><input type="checkbox" id="expNol" /><span>Tulis angka 0 pada pupuk yang nol<small>Bila tidak dicentang, selnya dikosongkan seperti contoh resmi</small></span></label>
-            <label class="check"><input type="checkbox" id="expBersih" /><span>Hanya baris tanpa galat<small>Baris bermasalah dilewati</small></span></label>
+            <label class="check"><input type="checkbox" id="expBersih" /><span>Hanya baris yang sesuai<small>Baris tidak sesuai dilewati</small></span></label>
             <label class="check"><input type="checkbox" id="expPerDesa" /><span>Satu berkas per desa<small>Terunduh berurutan, satu berkas tiap kode desa</small></span></label>
           </div>
           <div class="divider"></div>
