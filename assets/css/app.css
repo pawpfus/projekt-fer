@@ -214,12 +214,13 @@ body::before {
 }
 
 /* ── STAT TILES ─────────────────────────────────────────── */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 14px; }
 
 /* baris ringkasan: identitas di atas, pupuk di bawah */
 .stats-row { display: grid; gap: 14px; }
 .stats-row + .stats-row { margin-top: 14px; }
-.stats-row:last-of-type { margin-bottom: 22px; }
+/* jarak ke kartu di bawahnya — jangan pakai :last-of-type, kartu juga <div> */
+.stats-row + .card, .stats + .card { margin-top: 22px; }
 .stats-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stats-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 
