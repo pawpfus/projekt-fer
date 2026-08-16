@@ -748,8 +748,9 @@ function eksporList() {
 }
 
 function renderEkspor() {
-  $('#expNama').value = state.settings.namaFile;
-  $('#expSheet').value = state.settings.sheetName;
+  // jangan timpa kotak yang sedang diketik — caret akan lompat ke akhir
+  if (document.activeElement !== $('#expNama')) $('#expNama').value = state.settings.namaFile;
+  if (document.activeElement !== $('#expSheet')) $('#expSheet').value = state.settings.sheetName;
 
   const list = eksporList();
   const s = summary(list);
