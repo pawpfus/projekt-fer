@@ -29,7 +29,9 @@ server dan tidak ada data yang dikirim ke mana pun.
 - **Pemeriksaan** sebelum ekspor: NIK bukan 16 digit, NIK ganda, kolom wajib kosong,
   komoditas tanpa dosis, dan luas melebihi batas.
 - **Ekspor** ke template ERDKK resmi (28 kolom, A–AB) — judul kolom persis, NIK
-  ditulis sebagai teks agar tidak berubah jadi notasi ilmiah, dan opsi satu berkas per desa.
+  ditulis sebagai teks agar tidak berubah jadi notasi ilmiah, dan opsi memisah berkas
+  **per desa** atau **per kelompok tani**. Tiap kelompok juga bisa diunduh satuan
+  lewat tombol di tab ID Poktan.
 - **Cadangan** seluruh data (termasuk nama petani & poktan) sebagai satu berkas Excel.
 
 ## Struktur template

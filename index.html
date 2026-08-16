@@ -188,6 +188,7 @@
             <thead><tr>
               <th style="width:34px">#</th><th>Nama Poktan</th><th class="num">Anggota</th>
               <th class="num">Luas MT1 (Ha)</th><th style="width:200px">ID Poktan</th><th>Status</th>
+              <th style="width:52px"></th>
             </tr></thead>
             <tbody id="tbodyPoktan"></tbody>
           </table>
@@ -297,7 +298,15 @@
           <div class="stack" style="gap:9px">
             <label class="check"><input type="checkbox" id="expNol" /><span>Tulis angka 0 pada pupuk yang nol<small>Bila tidak dicentang, selnya dikosongkan seperti contoh resmi</small></span></label>
             <label class="check"><input type="checkbox" id="expBersih" /><span>Hanya baris yang sesuai<small>Baris tidak sesuai dilewati</small></span></label>
-            <label class="check"><input type="checkbox" id="expPerDesa" /><span>Satu berkas per desa<small>Terunduh berurutan, satu berkas tiap kode desa</small></span></label>
+          </div>
+          <div class="field">
+            <label>Pisah berkas</label>
+            <select id="expPisah">
+              <option value="">Satu berkas untuk semua</option>
+              <option value="desa">Satu berkas per desa</option>
+              <option value="poktan">Satu berkas per kelompok tani</option>
+            </select>
+            <span class="hint" id="expPisahHint"></span>
           </div>
           <div class="divider"></div>
           <button class="btn btn-primary" id="btnEkspor" style="justify-content:center"><i class="ti ti-file-spreadsheet"></i>Unduh Template ERDKK</button>

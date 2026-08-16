@@ -101,7 +101,7 @@ function filtered() {
 }
 
 const tileHtml = (t) => `
-  <div class="stat" style="--accent:${t.c}">
+  <div class="stat" style="--bar:${t.c}">
     <div class="stat-k">${esc(t.k)}</div>
     <div class="stat-v">${esc(t.v)}${t.u ? `<span class="stat-u">${esc(t.u)}</span>` : ''}</div>
   </div>`;
@@ -780,8 +780,10 @@ function renderPoktan() {
       <td><input type="text" class="mono" data-poktan-id="${esc(o.nama)}"
             value="${esc(efektif)}" placeholder="mis. 1048014" /></td>
       <td>${status}</td>
+      <td><div class="row-acts"><button class="btn btn-sm btn-icon" data-unduh-poktan="${esc(o.nama)}"
+            title="Unduh template ERDKK kelompok ini"><i class="ti ti-download"></i></button></div></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="6"><div class="tbl-empty"><i class="ti ti-users-off"></i><b>Belum ada kelompok tani</b>Nama poktan diambil dari kolom "Nama Poktan" saat impor.</div></td></tr>`;
+  }).join('') || `<tr><td colspan="7"><div class="tbl-empty"><i class="ti ti-users-off"></i><b>Belum ada kelompok tani</b>Nama poktan diambil dari kolom "Nama Poktan" saat impor.</div></td></tr>`;
 
   $('#badgePoktan').textContent = list.length;
   $('#badgePoktan').classList.toggle('warn', belum.length > 0);
@@ -793,6 +795,21 @@ $('#tbodyPoktan').addEventListener('input', (e) => {
   const v = txt(e.target.value);
   if (v) state.poktanId[nama] = v; else delete state.poktanId[nama];
   emit();
+});
+
+$('#tbodyPoktan').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-unduh-poktan]');
+  if (!btn) return;
+  const nama = btn.dataset.unduhPoktan;
+  const rows = state.petani.filter((p) => upper(p.namaPoktan) === upper(nama));
+  if (!rows.length) return toast('Tidak ada anggota di kelompok ini', 'warn');
+
+  const base = slug(state.settings.namaFile) || 'template-erdkk';
+  downloadWorkbook(buildTemplateWorkbook(rows, {
+    sheetName: txt(state.settings.sheetName) || 'Worksheet',
+    tulisNol: false,
+  }), `${base}-${slug(nama)}`);
+  toast(`${esc(nama)}: ${fmt(rows.length)} baris diunduh`);
 });
 
 $('#btnPoktanTerap').onclick = () => {
@@ -960,7 +977,7 @@ function renderPeriksa() {
     { k: 'Tidak Sesuai', v: fmt(vres.errors), c: 'var(--coral)' },
     { k: 'Peringatan', v: fmt(vres.warns), c: 'var(--amber)' },
     { k: 'Tanpa Catatan', v: fmt(bersih), c: 'var(--teal)' },
-  ].map((t) => `<div class="stat" style="--accent:${t.c}"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}</div></div>`).join('');
+  ].map((t) => `<div class="stat" style="--bar:${t.c}"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}</div></div>`).join('');
 
   renderDup();
 
@@ -1057,6 +1074,13 @@ function renderEkspor() {
 
   const list = eksporList();
   const s = summary(list);
+  const mode = $('#expPisah').value;
+
+  const berkas = mode ? grupEkspor(list, mode, 'x') : [];
+  $('#expPisahHint').textContent = mode
+    ? `${berkas.length} berkas akan diunduh berurutan`
+    : 'Seluruh baris dalam satu berkas';
+
   const desa = new Map();
   list.forEach((p) => {
     const k = txt(p.kodeDesa) || '(tanpa kode)';
@@ -1065,15 +1089,20 @@ function renderEkspor() {
     desa.set(k, o);
   });
 
+  const perPoktan = mode === 'poktan' ? grupEkspor(list, 'poktan', 'x') : null;
+
   $('#expRekap').innerHTML = `
     <div class="kv"><span>Baris diekspor</span><b>${fmt(list.length)}</b></div>
     <div class="kv"><span>Total luas</span><b>${fmt(s.luas, 2)} Ha</b></div>
     ${PUPUK.map(({ key, label }) => `<div class="kv"><span>${label}</span><b>${fmt(s[key])} kg</b></div>`).join('')}
     <div class="divider"></div>
-    <div class="section-label">Sebaran per desa</div>
-    ${[...desa.entries()].map(([k, o]) =>
-      `<div class="kv"><span class="mono">${esc(k)}${o.nama ? ` · ${esc(o.nama)}` : ''}</span><b>${fmt(o.n)}</b></div>`).join('')
-      || '<p class="muted" style="font-size:12.5px">Belum ada data.</p>'}`;
+    ${perPoktan
+      ? `<div class="section-label">Sebaran per kelompok tani (${perPoktan.length})</div>
+         ${perPoktan.map((g) => `<div class="kv"><span>${esc(g.kunci)}</span><b>${fmt(g.rows.length)}</b></div>`).join('')}`
+      : `<div class="section-label">Sebaran per desa</div>
+         ${[...desa.entries()].map(([k, o]) =>
+            `<div class="kv"><span class="mono">${esc(k)}${o.nama ? ` · ${esc(o.nama)}` : ''}</span><b>${fmt(o.n)}</b></div>`).join('')
+            || '<p class="muted" style="font-size:12.5px">Belum ada data.</p>'}`}`;
 
   $('#expWarn').innerHTML = vres.badRows
     ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div><b>${vres.badRows} baris belum sesuai</b>
@@ -1083,39 +1112,67 @@ function renderEkspor() {
       : `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div><b>Belum ada data</b>Impor database poktan atau tambahkan petani lebih dulu.</div></div>`);
 }
 
-['#expBersih', '#expNol', '#expPerDesa'].forEach((s) => ($(s).onchange = renderEkspor));
+['#expBersih', '#expNol', '#expPisah'].forEach((s) => ($(s).onchange = renderEkspor));
 $('#expNama').oninput = (e) => { state.settings.namaFile = e.target.value; emit(); };
 $('#expSheet').oninput = (e) => { state.settings.sheetName = e.target.value; emit(); };
+
+/** Nama berkas aman: tanpa karakter terlarang, spasi jadi tanda hubung. */
+const slug = (s) => txt(s).replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 60);
+
+function eksporOpts() {
+  return {
+    sheetName: txt($('#expSheet').value) || 'Worksheet',
+    tulisNol: $('#expNol').checked,
+  };
+}
+
+/** Unduh beberapa workbook berurutan — peramban memblokir bila terlalu rapat. */
+function unduhBeruntun(berkas) {
+  berkas.forEach(({ rows, nama }, i) => {
+    setTimeout(() => downloadWorkbook(buildTemplateWorkbook(rows, eksporOpts()), nama), i * 500);
+  });
+}
+
+/** Kelompokkan daftar petani untuk dipisah jadi beberapa berkas. */
+function grupEkspor(list, mode, base) {
+  const m = new Map();
+  list.forEach((p) => {
+    const kunci = mode === 'poktan'
+      ? (upper(p.namaPoktan) || txt(p.idPoktan) || '(tanpa poktan)')
+      : (txt(p.kodeDesa) || '(tanpa kode desa)');
+    if (!m.has(kunci)) m.set(kunci, []);
+    m.get(kunci).push(p);
+  });
+  return [...m.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], 'id'))
+    .map(([kunci, rows]) => ({
+      kunci, rows,
+      nama: mode === 'poktan'
+        ? `${base}-${slug(kunci)}`
+        : `${base}-${slug(kunci)}${rows[0].namaDesa ? '-' + slug(rows[0].namaDesa) : ''}`,
+    }));
+}
 
 $('#btnEkspor').onclick = () => {
   const list = eksporList();
   if (!list.length) return toast('Tidak ada baris untuk diekspor', 'warn');
 
-  const opts = {
-    sheetName: txt($('#expSheet').value) || 'Worksheet',
-    tulisNol: $('#expNol').checked,
-  };
-  const base = txt($('#expNama').value) || 'template-erdkk';
+  const base = slug($('#expNama').value) || 'template-erdkk';
+  const mode = $('#expPisah').value;
 
-  if (!$('#expPerDesa').checked) {
-    downloadWorkbook(buildTemplateWorkbook(list, opts), base);
+  if (!mode) {
+    downloadWorkbook(buildTemplateWorkbook(list, eksporOpts()), base);
     return toast(`${fmt(list.length)} baris diekspor`);
   }
 
-  const grup = new Map();
-  list.forEach((p) => {
-    const k = txt(p.kodeDesa) || 'tanpa-kode';
-    if (!grup.has(k)) grup.set(k, []);
-    grup.get(k).push(p);
-  });
-  let i = 0;
-  grup.forEach((rows, kode) => {
-    const nama = txt(rows[0].namaDesa).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
-    setTimeout(() => downloadWorkbook(buildTemplateWorkbook(rows, opts),
-      `${base}-${kode}${nama ? '-' + nama : ''}`), i * 450);
-    i++;
-  });
-  toast(`${grup.size} berkas diunduh berurutan`);
+  const berkas = grupEkspor(list, mode, base);
+  const label = mode === 'poktan' ? 'kelompok tani' : 'desa';
+  if (berkas.length > 8 && !confirm(
+    `Akan mengunduh ${berkas.length} berkas (satu per ${label}), berurutan tiap 0,5 detik.\n\n` +
+    `Peramban mungkin meminta izin unduhan berganda. Lanjutkan?`)) return;
+
+  unduhBeruntun(berkas);
+  toast(`${berkas.length} berkas diunduh berurutan`);
 };
 
 $('#btnBackup').onclick = () => {
