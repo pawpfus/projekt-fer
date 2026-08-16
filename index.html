@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ERDKK FORGE — Generator Template ERDKK</title>
+<meta name="description" content="Isi template ERDKK secara otomatis dari database poktan. Dosis pupuk dihitung dari luas lahan, hasil siap unggah ke erdkk25.pertanian.go.id." />
+<meta name="theme-color" content="#014421" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23014421'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='%23fff' text-anchor='middle'%3EE%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">EF</div>
+    <div class="brand-text">
+      <span class="brand-name">ERDKK FORGE</span>
+      <span class="brand-sub" id="brandSub">Generator template e-RDKK</span>
+    </div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <span class="pill hide-sm" id="pillWilayah">—</span>
+  <span class="pill" id="pillCount"><b>0</b> petani</span>
+  <button class="icon-btn" id="btnTheme" title="Ganti tema terang/gelap"><i class="ti ti-moon"></i></button>
+</header>
+
+<nav class="nav" id="nav">
+  <button class="nav-item active" data-view="data"><i class="ti ti-table"></i>Data Petani <span class="nav-badge" id="badgeData">0</span></button>
+  <button class="nav-item" data-view="impor"><i class="ti ti-file-upload"></i>Impor Database</button>
+  <button class="nav-item" data-view="dosis"><i class="ti ti-flask"></i>Dosis Pupuk <span class="nav-badge" id="badgeDosis">0</span></button>
+  <button class="nav-item" data-view="periksa"><i class="ti ti-shield-check"></i>Periksa <span class="nav-badge" id="badgeIssue">0</span></button>
+  <button class="nav-item" data-view="ekspor"><i class="ti ti-download"></i>Ekspor</button>
+  <button class="nav-item" data-view="setelan"><i class="ti ti-settings"></i>Setelan</button>
+</nav>
+
+<main class="wrap">
+
+  <!-- ══════════ DATA PETANI ══════════ -->
+  <section class="view active" id="view-data">
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="toolbar" style="flex:1">
+          <div class="search">
+            <i class="ti ti-search"></i>
+            <input type="search" id="q" placeholder="Cari nama, NIK, poktan, desa…" autocomplete="off" />
+          </div>
+          <select id="fDesa" style="width:auto;min-width:130px"><option value="">Semua desa</option></select>
+          <select id="fPoktan" style="width:auto;min-width:140px"><option value="">Semua poktan</option></select>
+          <select id="fKom" style="width:auto;min-width:130px"><option value="">Semua komoditas</option></select>
+          <select id="fStatus" style="width:auto;min-width:120px">
+            <option value="">Semua status</option>
+            <option value="err">Ada galat</option>
+            <option value="warn">Ada peringatan</option>
+            <option value="ok">Bersih</option>
+          </select>
+        </div>
+        <button class="btn btn-sm" id="btnRecalc" title="Hitung ulang seluruh pupuk dari dosis terkini"><i class="ti ti-refresh"></i><span class="hide-sm">Hitung Ulang</span></button>
+        <button class="btn btn-sm btn-danger" id="btnHapusFilter" title="Hapus baris yang sedang tampil"><i class="ti ti-trash"></i></button>
+        <button class="btn btn-sm btn-primary" id="btnTambah"><i class="ti ti-plus"></i>Tambah Petani</button>
+      </div>
+      <div class="card-body flush">
+        <div class="tbl-scroll">
+          <table class="tbl" id="tbl">
+            <thead>
+              <tr>
+                <th style="width:34px">#</th>
+                <th>Petani</th>
+                <th>NIK</th>
+                <th>Poktan / Desa</th>
+                <th>MT1</th>
+                <th class="num">Luas 1</th>
+                <th class="num">Urea</th>
+                <th class="num">NPK</th>
+                <th class="num">NPK-F</th>
+                <th class="num">Organik</th>
+                <th class="num">ZA</th>
+                <th>MT2</th>
+                <th class="num">Luas 2</th>
+                <th>MT3</th>
+                <th class="num">Luas 3</th>
+                <th style="width:76px"></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ IMPOR ══════════ -->
+  <section class="view" id="view-impor">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-file-upload"></i>Impor Database Poktan</div>
+        <div class="topbar-spacer"></div>
+        <div class="card-desc">Excel (.xlsx / .xls) atau CSV</div>
+      </div>
+      <div class="card-body stack">
+        <div class="dropzone" id="dz">
+          <i class="ti ti-cloud-upload"></i>
+          <b>Letakkan berkas di sini atau klik untuk memilih</b>
+          <span>Kolom akan dicocokkan otomatis — bisa Anda perbaiki sebelum diimpor</span>
+          <input type="file" id="fileImp" accept=".xlsx,.xls,.csv" hidden />
+        </div>
+        <div class="alert alert-info">
+          <i class="ti ti-info-circle"></i>
+          <div><b>Kolom wajib</b>KTP/NIK, Nama Ibu Kandung, Nama Penyuluh, Kode Desa, ID Poktan, Kode Kios, Komoditas MT1, dan Luas MT1. Kolom lain opsional — yang kosong bisa diisi dari <b>Setelan</b>.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="impPanel" hidden>
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-arrows-exchange"></i>Pemetaan Kolom</div>
+        <div class="topbar-spacer"></div>
+        <div class="inline">
+          <label class="muted" style="font-size:12px">Sheet</label>
+          <select id="impSheet" style="width:auto"></select>
+          <label class="muted" style="font-size:12px">Baris judul</label>
+          <input type="number" id="impHeaderRow" min="1" style="width:70px" class="mono" />
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid g2">
+          <div>
+            <div class="section-label">Field aplikasi → kolom berkas</div>
+            <div id="mapRows"></div>
+          </div>
+          <div class="stack">
+            <div>
+              <div class="section-label">Opsi impor</div>
+              <div class="stack" style="gap:9px">
+                <label class="check"><input type="radio" name="impMode" value="append" checked /><span>Tambahkan ke data yang ada<small>Baris baru digabung dengan daftar sekarang</small></span></label>
+                <label class="check"><input type="radio" name="impMode" value="replace" /><span>Ganti seluruh data<small>Daftar lama dihapus lebih dulu</small></span></label>
+                <label class="check"><input type="checkbox" id="impDedup" checked /><span>Lewati NIK yang sudah ada<small>Mencegah petani ganda</small></span></label>
+                <label class="check"><input type="checkbox" id="impSalinMt2" checked /><span>Salin MT1 ke MT2 bila MT2 kosong<small>Pola umum padi dua musim</small></span></label>
+                <label class="check"><input type="checkbox" id="impIsiKosong" checked /><span>Isi kolom kosong dari Setelan<small>Penyuluh, kode desa, kode kios, ID poktan</small></span></label>
+              </div>
+            </div>
+            <div id="impStat"></div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-label">Pratinjau 8 baris pertama</div>
+        <div class="tbl-scroll" style="max-height:300px;border:1px solid var(--rule);border-radius:var(--r-md)">
+          <table class="tbl" id="impPrev"></table>
+        </div>
+        <div class="inline" style="justify-content:flex-end;margin-top:14px">
+          <button class="btn" id="impBatal">Batal</button>
+          <button class="btn btn-primary" id="impJalan"><i class="ti ti-check"></i>Impor <span id="impJumlah"></span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ DOSIS ══════════ -->
+  <section class="view" id="view-dosis">
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-flask"></i>Dosis Pupuk per Hektar</div>
+        <div class="topbar-spacer"></div>
+        <button class="btn btn-sm" id="btnDosisFile"><i class="ti ti-file-import"></i>Impor Berkas Dosis</button>
+        <button class="btn btn-sm" id="btnDosisReset"><i class="ti ti-rotate"></i>Kembalikan Bawaan</button>
+        <button class="btn btn-sm btn-primary" id="btnDosisTambah"><i class="ti ti-plus"></i>Baris</button>
+        <input type="file" id="fileDosis" accept=".xlsx,.xls,.csv" hidden />
+      </div>
+      <div class="card-body flush">
+        <div class="tbl-scroll">
+          <table class="tbl" id="tblDosis">
+            <thead>
+              <tr>
+                <th>Komoditas</th><th>Subsektor</th>
+                <th class="num">Urea</th><th class="num">NPK</th><th class="num">NPK Formula</th>
+                <th class="num">Organik</th><th class="num">ZA</th>
+                <th class="num">SP36</th><th class="num">POC</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="tbodyDosis"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="alert alert-warn">
+          <i class="ti ti-alert-triangle"></i>
+          <div><b>Mengubah dosis tidak otomatis menghitung ulang baris manual</b>Baris yang pupuknya pernah Anda ubah sendiri ditandai <span class="tag tag-amber">manual</span> dan dipertahankan. Gunakan <b>Hitung Ulang</b> di tab Data untuk memaksa seluruh baris memakai dosis terbaru.</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section-label">Wilayah acuan dosis</div>
+        <div class="grid g4">
+          <div class="field"><label>Tahun</label><input type="number" class="mono" id="dmYear" /></div>
+          <div class="field"><label>Provinsi</label><input type="text" id="dmProv" /></div>
+          <div class="field"><label>Kabupaten</label><input type="text" id="dmKab" /></div>
+          <div class="field"><label>Kecamatan</label><input type="text" id="dmKec" /></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ PERIKSA ══════════ -->
+  <section class="view" id="view-periksa">
+    <div class="stats" id="statsPeriksa"></div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-shield-check"></i>Hasil Pemeriksaan</div>
+        <div class="topbar-spacer"></div>
+        <select id="fIssue" style="width:auto">
+          <option value="all">Galat &amp; peringatan</option>
+          <option value="error">Galat saja</option>
+          <option value="warn">Peringatan saja</option>
+        </select>
+      </div>
+      <div class="card-body flush">
+        <div class="issue-list" id="issueList" style="max-height:60vh"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ EKSPOR ══════════ -->
+  <section class="view" id="view-ekspor">
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <div class="card-head"><div class="card-title"><i class="ti ti-download"></i>Ekspor Template ERDKK</div></div>
+        <div class="card-body stack">
+          <div id="expWarn"></div>
+          <div class="field">
+            <label>Nama berkas</label>
+            <input type="text" id="expNama" class="mono" />
+            <span class="hint">Akhiran <code>.xlsx</code> ditambahkan otomatis</span>
+          </div>
+          <div class="field">
+            <label>Nama sheet</label>
+            <input type="text" id="expSheet" class="mono" />
+            <span class="hint">Template resmi memakai <b>Worksheet</b></span>
+          </div>
+          <div class="stack" style="gap:9px">
+            <label class="check"><input type="checkbox" id="expNol" /><span>Tulis angka 0 pada pupuk yang nol<small>Bila tidak dicentang, selnya dikosongkan seperti contoh resmi</small></span></label>
+            <label class="check"><input type="checkbox" id="expBersih" /><span>Hanya baris tanpa galat<small>Baris bermasalah dilewati</small></span></label>
+            <label class="check"><input type="checkbox" id="expPerDesa" /><span>Satu berkas per desa<small>Terunduh berurutan, satu berkas tiap kode desa</small></span></label>
+          </div>
+          <div class="divider"></div>
+          <button class="btn btn-primary" id="btnEkspor" style="justify-content:center"><i class="ti ti-file-spreadsheet"></i>Unduh Template ERDKK</button>
+          <div class="alert alert-info">
+            <i class="ti ti-upload"></i>
+            <div><b>Langkah berikutnya</b>Buka <b>erdkk25.pertanian.go.id</b>, masuk ke menu unggah, lalu pilih berkas ini. Jangan ubah judul kolom.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><div class="card-title"><i class="ti ti-list-details"></i>Rekap yang Akan Diekspor</div></div>
+          <div class="card-body" id="expRekap"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title"><i class="ti ti-database-export"></i>Cadangan Data</div></div>
+          <div class="card-body stack">
+            <p class="muted" style="font-size:12.5px">Simpan seluruh data (termasuk nama petani, nama poktan, dan tabel dosis) sebagai satu berkas Excel agar bisa dilanjutkan di perangkat lain.</p>
+            <div class="inline">
+              <button class="btn" id="btnBackup"><i class="ti ti-download"></i>Unduh Cadangan</button>
+              <button class="btn" id="btnRestore"><i class="ti ti-upload"></i>Muat Cadangan</button>
+              <input type="file" id="fileRestore" accept=".xlsx,.xls,.csv" hidden />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ SETELAN ══════════ -->
+  <section class="view" id="view-setelan">
+    <div class="grid g2" style="align-items:start">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title"><i class="ti ti-user-cog"></i>Nilai Bawaan</div>
+          <div class="topbar-spacer"></div>
+          <div class="card-desc">Dipakai saat menambah petani &amp; mengisi kolom kosong</div>
+        </div>
+        <div class="card-body grid g2">
+          <div class="field"><label>Nama Penyuluh</label><input type="text" id="sPenyuluh" placeholder="MUHAMMAD FACHRURI" /></div>
+          <div class="field"><label>Kode Desa</label><input type="text" id="sKodeDesa" class="mono" placeholder="7314101001" /></div>
+          <div class="field"><label>Nama Desa</label><input type="text" id="sNamaDesa" placeholder="MOJONG" /></div>
+          <div class="field"><label>Kode Kios</label><input type="text" id="sKodeKios" class="mono" placeholder="RT0000086439" /></div>
+          <div class="field"><label>Nama Kios</label><input type="text" id="sNamaKios" placeholder="REZKY TANI" /></div>
+          <div class="field"><label>ID Poktan</label><input type="text" id="sIdPoktan" class="mono" placeholder="1048014" /></div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <div class="card-head"><div class="card-title"><i class="ti ti-adjustments"></i>Perilaku</div></div>
+          <div class="card-body stack">
+            <div class="field">
+              <label>Batas luas per musim tanam (Ha)</label>
+              <input type="number" id="sBatas" class="mono" step="0.1" min="0" />
+              <span class="hint">Baris melebihi batas diberi peringatan. Isi 0 untuk menonaktifkan.</span>
+            </div>
+            <label class="check"><input type="checkbox" id="sSalinMt2" /><span>Salin MT1 ke MT2 saat menambah petani<small>Otomatis mengisi musim kedua dengan komoditas &amp; luas yang sama</small></span></label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title"><i class="ti ti-alert-octagon"></i>Zona Berbahaya</div></div>
+          <div class="card-body stack">
+            <p class="muted" style="font-size:12.5px">Data tersimpan di peramban ini saja (localStorage) — tidak dikirim ke server mana pun. Unduh cadangan sebelum menghapus.</p>
+            <button class="btn btn-danger" id="btnReset" style="align-self:flex-start"><i class="ti ti-trash"></i>Hapus Semua Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══════════ DRAWER FORM ══════════ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h3 id="drawerTitle">Tambah Petani</h3>
+    <button class="icon-btn" id="drawerClose"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="drawer-body">
+    <form id="form" autocomplete="off">
+      <div class="section-label">Identitas</div>
+      <div class="grid g2">
+        <div class="field"><label>Nama Petani <span class="hint">(tidak diekspor)</span></label><input type="text" name="namaPetani" /></div>
+        <div class="field"><label>KTP / NIK <span class="req">*</span></label><input type="text" name="ktp" class="mono" inputmode="numeric" maxlength="16" placeholder="16 digit" /></div>
+        <div class="field"><label>Nama Ibu Kandung <span class="req">*</span></label><input type="text" name="namaIbu" /></div>
+        <div class="field"><label>Nama Penyuluh <span class="req">*</span></label><input type="text" name="namaPenyuluh" /></div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Wilayah &amp; Kelompok</div>
+      <div class="grid g2">
+        <div class="field"><label>Kode Desa <span class="req">*</span></label><input type="text" name="kodeDesa" class="mono" /></div>
+        <div class="field"><label>Nama Desa</label><input type="text" name="namaDesa" /></div>
+        <div class="field"><label>ID Poktan <span class="req">*</span></label><input type="text" name="idPoktan" class="mono" /></div>
+        <div class="field"><label>Nama Poktan</label><input type="text" name="namaPoktan" /></div>
+        <div class="field"><label>Kode Kios <span class="req">*</span></label><input type="text" name="kodeKios" class="mono" /></div>
+        <div class="field"><label>Nama Kios</label><input type="text" name="namaKios" /></div>
+        <div class="field"><label>Subsektor <span class="req">*</span></label>
+          <select name="subsektor" id="fSubsektor"></select>
+          <span class="hint">Terisi otomatis dari komoditas MT1</span>
+        </div>
+      </div>
+
+      <div id="mtFields"></div>
+
+      <div class="divider"></div>
+      <div id="formIssues"></div>
+    </form>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" id="btnBatal">Batal</button>
+    <button class="btn" id="btnSimpanLagi"><i class="ti ti-plus"></i>Simpan &amp; Baru</button>
+    <button class="btn btn-primary" id="btnSimpan"><i class="ti ti-device-floppy"></i>Simpan</button>
+  </div>
+</aside>
+
+<div id="toasts"></div>
+
+<script src="assets/js/xlsx.full.min.js"></script>
+<script type="module" src="assets/js/app.js"></script>
+</body>
+</html>
