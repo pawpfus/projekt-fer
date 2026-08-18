@@ -47,56 +47,68 @@
         <div class="card-title"><i class="ti ti-chart-donut-3"></i>Ringkasan</div>
         <div class="topbar-spacer"></div>
         <button class="btn btn-sm" id="btnVizTabel"><i class="ti ti-table"></i>Lihat sebagai tabel</button>
+        <button class="btn btn-sm btn-icon" id="btnVizLipat" title="Sembunyikan ringkasan"><i class="ti ti-chevron-up"></i></button>
       </div>
-      <div class="card-body">
+      <div class="card-body" id="vizBody">
         <div class="viz-grid" id="vizGrid"></div>
         <div id="vizTabel" hidden></div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head">
-        <div class="toolbar" style="flex:1">
+      <div class="card-head stackhead">
+        <div class="toolbar">
           <div class="search">
             <i class="ti ti-search"></i>
             <input type="search" id="q" placeholder="Cari nama, NIK, poktan, desa…" autocomplete="off" />
           </div>
-          <select id="fDesa" style="width:auto;min-width:130px"><option value="">Semua desa</option></select>
-          <select id="fPoktan" style="width:auto;min-width:140px"><option value="">Semua poktan</option></select>
-          <select id="fKom" style="width:auto;min-width:130px"><option value="">Semua komoditas</option></select>
-          <select id="fStatus" style="width:auto;min-width:120px">
+          <select id="fDesa"><option value="">Semua desa</option></select>
+          <select id="fPoktan"><option value="">Semua poktan</option></select>
+          <select id="fKom"><option value="">Semua komoditas</option></select>
+          <select id="fStatus">
             <option value="">Semua status</option>
             <option value="err">Tidak sesuai</option>
             <option value="warn">Ada peringatan</option>
             <option value="ok">Sesuai</option>
           </select>
+          <button class="btn btn-sm" id="btnBersihSaring" hidden><i class="ti ti-filter-off"></i>Bersihkan saringan</button>
         </div>
-        <button class="btn btn-sm" id="btnIsiMt" title="Isi atau kosongkan musim tanam secara massal"><i class="ti ti-calendar-plus"></i>Isi MT</button>
-        <button class="btn btn-sm" id="btnRecalc" title="Hitung ulang seluruh pupuk dari dosis terkini"><i class="ti ti-refresh"></i><span class="hide-sm">Hitung Ulang</span></button>
-        <button class="btn btn-sm btn-danger" id="btnHapusFilter" title="Hapus baris yang sedang tampil"><i class="ti ti-trash"></i></button>
-        <button class="btn btn-sm btn-primary" id="btnTambah"><i class="ti ti-plus"></i>Tambah Petani</button>
+        <div class="toolbar toolbar-act">
+          <span class="tally" id="tally"></span>
+          <button class="btn btn-sm" id="btnIsiMt" title="Isi atau kosongkan musim tanam secara massal"><i class="ti ti-calendar-plus"></i>Isi MT</button>
+          <button class="btn btn-sm" id="btnRecalc" title="Hitung ulang seluruh pupuk dari dosis terkini"><i class="ti ti-refresh"></i>Hitung Ulang</button>
+          <button class="btn btn-sm btn-danger" id="btnHapusFilter" title="Hapus baris yang sedang tampil"><i class="ti ti-trash"></i></button>
+          <button class="btn btn-sm btn-primary" id="btnTambah"><i class="ti ti-plus"></i>Tambah Petani</button>
+        </div>
       </div>
       <div class="card-body flush">
         <div class="tbl-scroll">
-          <table class="tbl" id="tbl">
+          <table class="tbl tbl-grouped" id="tbl">
             <thead>
+              <tr class="grouprow">
+                <th colspan="4">Identitas</th>
+                <th colspan="7" class="g">Musim Tanam 1 — komoditas, luas &amp; kebutuhan pupuk</th>
+                <th colspan="2" class="g">Musim Tanam 2</th>
+                <th colspan="2" class="g">Musim Tanam 3</th>
+                <th class="g"></th>
+              </tr>
               <tr>
                 <th style="width:34px">#</th>
                 <th>Petani</th>
                 <th>NIK</th>
                 <th>Poktan / Desa</th>
-                <th>MT1</th>
-                <th class="num">Luas 1</th>
+                <th class="g">Komoditas</th>
+                <th class="num">Luas</th>
                 <th class="num">Urea</th>
                 <th class="num">NPK</th>
                 <th class="num">NPK-F</th>
                 <th class="num">Organik</th>
                 <th class="num">ZA</th>
-                <th>MT2</th>
-                <th class="num">Luas 2</th>
-                <th>MT3</th>
-                <th class="num">Luas 3</th>
-                <th style="width:76px"></th>
+                <th class="g">Komoditas</th>
+                <th class="num">Luas</th>
+                <th class="g">Komoditas</th>
+                <th class="num">Luas</th>
+                <th class="g" style="width:76px"></th>
               </tr>
             </thead>
             <tbody id="tbody"></tbody>

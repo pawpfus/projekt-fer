@@ -198,6 +198,17 @@ function renderVizTabel() {
   }).join('');
 }
 
+/* ringkasan bisa dilipat — pilihannya diingat antar sesi */
+const VIZ_KEY = 'projekt-fer:viz-lipat';
+function setVizLipat(lipat) {
+  $('#vizBody').hidden = lipat;
+  $('#btnVizTabel').hidden = lipat;
+  $('#btnVizLipat').innerHTML = `<i class="ti ti-chevron-${lipat ? 'down' : 'up'}"></i>`;
+  $('#btnVizLipat').title = lipat ? 'Tampilkan ringkasan' : 'Sembunyikan ringkasan';
+  localStorage.setItem(VIZ_KEY, lipat ? '1' : '0');
+}
+$('#btnVizLipat').onclick = () => setVizLipat(!$('#vizBody').hidden);
+
 $('#btnVizTabel').onclick = () => {
   const t = $('#vizTabel'), g = $('#vizGrid');
   const keTabel = t.hidden;
@@ -280,18 +291,18 @@ function renderTable() {
         <span class="sub">${esc(p.namaIbu || '—')}</span></td>
       <td class="mono nowrap">${esc(p.ktp || '—')}</td>
       <td>${esc(p.namaPoktan || p.idPoktan || '—')}${isPmaas(p) ? ' <span class="tag tag-teal">PM-AAS</span>' : ''}<span class="sub">${esc(p.namaDesa || p.kodeDesa || '—')}</span></td>
-      <td>${kom(m1)}${m1.manual ? ' <span class="tag tag-amber">manual</span>' : ''}</td>
+      <td class="g">${kom(m1)}${m1.manual ? ' <span class="tag tag-amber">manual</span>' : ''}</td>
       <td class="num">${numLuas(m1.luas) ? fmt(numLuas(m1.luas), 2) : '<span class="muted">·</span>'}</td>
       <td class="num">${n(m1.urea)}</td>
       <td class="num">${n(m1.npk)}</td>
       <td class="num">${n(m1.npkFormula)}</td>
       <td class="num">${n(m1.organik)}</td>
       <td class="num">${n(m1.za)}</td>
-      <td>${kom(p.mt[1])}</td>
+      <td class="g">${kom(p.mt[1])}</td>
       <td class="num">${numLuas(p.mt[1].luas) ? fmt(numLuas(p.mt[1].luas), 2) : '<span class="muted">·</span>'}</td>
-      <td>${kom(p.mt[2])}</td>
+      <td class="g">${kom(p.mt[2])}</td>
       <td class="num">${numLuas(p.mt[2].luas) ? fmt(numLuas(p.mt[2].luas), 2) : '<span class="muted">·</span>'}</td>
-      <td><div class="row-acts">
+      <td class="g"><div class="row-acts">
         <button class="btn btn-sm btn-icon" data-act="dup" title="Gandakan"><i class="ti ti-copy"></i></button>
         <button class="btn btn-sm btn-icon btn-danger" data-act="del" title="Hapus"><i class="ti ti-trash"></i></button>
       </div></td>
@@ -300,7 +311,33 @@ function renderTable() {
 
   $('#pillCount').innerHTML = `<b>${fmt(list.length)}</b>${list.length !== state.petani.length ? ` / ${fmt(state.petani.length)}` : ''} petani`;
   $('#badgeData').textContent = fmt(state.petani.length);
+  renderTally(list.length);
+  ukurHeaderKelompok();
 }
+
+/** Tinggi baris kelompok dipakai sebagai offset lengket tingkat kedua. */
+function ukurHeaderKelompok() {
+  const r = $('#tbl thead tr.grouprow');
+  if (!r) return;
+  const h = Math.round(r.getBoundingClientRect().height);
+  if (h > 0) $('#tbl').style.setProperty('--grouph', h + 'px');
+}
+addEventListener('resize', ukurHeaderKelompok);
+
+/** Keterangan hasil saring + tombol bersihkan, muncul hanya saat menyaring. */
+function renderTally(tampil) {
+  const total = state.petani.length;
+  const menyaring = tampil !== total;
+  $('#btnBersihSaring').hidden = !menyaring;
+  $('#tally').textContent = !total ? ''
+    : menyaring ? `${fmt(tampil)} dari ${fmt(total)} baris` : `${fmt(total)} baris`;
+}
+
+$('#btnBersihSaring').onclick = () => {
+  $('#q').value = '';
+  ['#fDesa', '#fPoktan', '#fKom', '#fStatus'].forEach((s) => ($(s).value = ''));
+  renderTable();
+};
 
 $('#tbody').addEventListener('click', (e) => {
   const tr = e.target.closest('tr[data-id]');
@@ -1464,6 +1501,7 @@ applyTheme(localStorage.getItem(THEME_KEY)
   || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 
 $('#mtFields').innerHTML = mtFieldsHtml();
+setVizLipat(localStorage.getItem(VIZ_KEY) === '1');
 load();
 renderDosis();
 renderPmaas();
