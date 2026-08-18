@@ -963,31 +963,6 @@ function hitungUlangPmaas(namaList) {
   return n;
 }
 
-$('#btnPmaasSemua').onclick = () => {
-  const list = poktanRingkas();
-  if (!list.length) return toast('Belum ada data poktan', 'warn');
-  if (!confirm(`Tandai seluruh ${list.length} kelompok sebagai peserta PM-AAS?
-
-` +
-    `Pupuk mereka akan dihitung ulang memakai kuota PM-AAS.`)) return;
-  list.forEach((o) => setPmaas(o.nama, true));
-  const n = hitungUlangPmaas(list.map((o) => o.nama));
-  emit(); renderPoktan(); renderPmaas();
-  toast(`${list.length} kelompok masuk PM-AAS · ${fmt(n)} baris dihitung ulang`);
-};
-
-$('#btnPmaasBersih').onclick = () => {
-  const nama = Object.keys(state.pmaas.poktan);
-  if (!nama.length) return toast('Belum ada kelompok PM-AAS', 'warn');
-  if (!confirm(`Keluarkan ${nama.length} kelompok dari PM-AAS?
-
-` +
-    `Pupuk mereka kembali memakai dosis komoditas.`)) return;
-  state.pmaas.poktan = {};
-  const n = hitungUlangPmaas(nama);
-  emit(); renderPoktan(); renderPmaas();
-  toast(`${nama.length} kelompok keluar PM-AAS · ${fmt(n)} baris dihitung ulang`);
-};
 
 $('#tbodyPoktan').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-unduh-poktan]');
