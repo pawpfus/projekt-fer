@@ -92,7 +92,6 @@ input[type=number] { -moz-appearance: textfield; }
   --shadow-lg: 0 20px 56px rgba(0,0,0,.6), 0 4px 14px rgba(0,0,0,.4);
 }
 
-html { scroll-behavior: smooth; }
 body {
   font-family: var(--font-ui);
   background: var(--bg);
@@ -157,13 +156,14 @@ body::before {
 .icon-btn:active { transform: scale(.94); }
 
 /* ── NAV TABS ───────────────────────────────────────────── */
+/* Scroller native: scrollbar peramban dibiarkan apa adanya — tidak
+   disembunyikan, tidak digaya-gayakan. */
 .nav {
   display: flex; gap: 2px; padding: 0 20px;
   background: var(--card); border-bottom: 1px solid var(--line);
   position: sticky; top: var(--topbar-h); z-index: 380;
-  overflow-x: auto; scrollbar-width: none;
+  overflow-x: auto;
 }
-.nav::-webkit-scrollbar { display: none; }
 .nav-item {
   border: 0; background: none; cursor: pointer;
   font-family: var(--font-ui); font-size: 13px; font-weight: 500;
