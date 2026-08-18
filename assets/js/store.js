@@ -2,7 +2,7 @@
    store.js — state, penyimpanan lokal, hitung pupuk, validasi
    ============================================================ */
 
-import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PUPUK } from './schema.js';
+import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js';
 
 const KEY = 'projekt-fer:v1';
 
@@ -72,6 +72,8 @@ export const state = {
   settings: { ...SETTINGS_DEFAULT },
   /** nama poktan (huruf besar) → ID poktan, untuk database tanpa kolom ID */
   poktanId: {},
+  /** program PM-AAS: kuota pupuk sendiri + daftar kelompok pesertanya */
+  pmaas: { dosis: { ...PMAAS_DEFAULT }, poktan: {} },
 };
 
 const subs = new Set();
@@ -83,7 +85,7 @@ export function save() {
     localStorage.setItem(KEY, JSON.stringify({
       petani: state.petani, dosis: state.dosis,
       dosisMeta: state.dosisMeta, settings: state.settings,
-      poktanId: state.poktanId,
+      poktanId: state.poktanId, pmaas: state.pmaas,
     }));
   } catch (e) {
     console.warn('Gagal menyimpan ke localStorage', e);
@@ -100,6 +102,12 @@ export function load() {
     if (d.dosisMeta) state.dosisMeta = { ...DOSIS_META_DEFAULT, ...d.dosisMeta };
     if (d.settings) state.settings = { ...SETTINGS_DEFAULT, ...d.settings };
     if (d.poktanId && typeof d.poktanId === 'object') state.poktanId = d.poktanId;
+    if (d.pmaas && typeof d.pmaas === 'object') {
+      state.pmaas = {
+        dosis: { ...PMAAS_DEFAULT, ...(d.pmaas.dosis || {}) },
+        poktan: d.pmaas.poktan && typeof d.pmaas.poktan === 'object' ? d.pmaas.poktan : {},
+      };
+    }
     return true;
   } catch (e) {
     console.warn('Gagal memuat data tersimpan', e);
@@ -127,14 +135,44 @@ export function dosisFor(komoditas) {
 export const komoditasList = () =>
   state.dosis.map((d) => upper(d.komoditas)).filter(Boolean).sort();
 
+/* ── PM-AAS ──────────────────────────────────────────────── */
+
+/** Petani ini anggota kelompok peserta PM-AAS? */
+export function isPmaas(p) {
+  const n = p ? upper(p.namaPoktan) : '';
+  return !!(n && state.pmaas.poktan[n]);
+}
+
+/** Dosis yang berlaku: kuota PM-AAS menimpa dosis komoditas. */
+export function dosisBerlaku(komoditas, petani) {
+  if (isPmaas(petani)) return state.pmaas.dosis;
+  return dosisFor(komoditas);
+}
+
+export function pmaasRingkas() {
+  const nama = Object.keys(state.pmaas.poktan).filter((k) => state.pmaas.poktan[k]).sort();
+  const set = new Set(nama);
+  const anggota = state.petani.filter((p) => set.has(upper(p.namaPoktan)));
+  const luas = anggota.reduce((s, p) =>
+    s + p.mt.reduce((a, mt) => a + (upper(mt.komoditas) ? numLuas(mt.luas) : 0), 0), 0);
+  return { poktan: nama.length, petani: anggota.length, luas: +luas.toFixed(2), nama };
+}
+
+export function setPmaas(namaPoktan, ikut) {
+  const n = upper(namaPoktan);
+  if (!n) return;
+  if (ikut) state.pmaas.poktan[n] = true; else delete state.pmaas.poktan[n];
+}
+
 /* ── hitung pupuk ────────────────────────────────────────── */
 
 /** Hitung ulang satu musim tanam dari luas × dosis. Lewati bila ditandai manual. */
-export function recalcMt(mt, { force = false } = {}) {
+export function recalcMt(mt, { force = false, petani = null } = {}) {
   if (mt.manual && !force) return mt;
-  const d = dosisFor(mt.komoditas);
+  const d = dosisBerlaku(mt.komoditas, petani);
   const luas = numLuas(mt.luas);
-  if (!d || luas <= 0) {
+  const kom = upper(mt.komoditas);
+  if (!kom || kom === '-' || !d || luas <= 0) {
     PUPUK.forEach(({ key }) => { mt[key] = 0; });
     return mt;
   }
@@ -143,7 +181,7 @@ export function recalcMt(mt, { force = false } = {}) {
 }
 
 export function recalcPetani(p, opts) {
-  p.mt.forEach((mt) => recalcMt(mt, opts));
+  p.mt.forEach((mt) => recalcMt(mt, { ...opts, petani: p }));
   if (!txt(p.subsektor)) {
     const d = dosisFor(p.mt[0].komoditas) || dosisFor(p.mt[1].komoditas) || dosisFor(p.mt[2].komoditas);
     if (d) p.subsektor = upper(d.subsektor);
@@ -211,8 +249,8 @@ export function isiMusimTanam(list, opt) {
     mt.komoditas = kom;
     mt.luas = luas;
     mt.manual = false;
-    recalcMt(mt, { force: true });
-    if (!dosisFor(kom)) tanpaDosis.add(kom);
+    recalcMt(mt, { force: true, petani: p });
+    if (!dosisBerlaku(kom, p)) tanpaDosis.add(kom);
     diubah++;
   });
 
@@ -264,10 +302,10 @@ export function validatePetani(p, ctx = {}) {
     }
     adaMt = true;
     if (luas <= 0) E(`mt${i}`, `${label}: luas lahan harus lebih dari 0`);
-    if (!dosisFor(kom)) E(`mt${i}`, `${label}: dosis "${kom}" tidak ada di tabel dosis`);
+    if (!dosisBerlaku(kom, p)) E(`mt${i}`, `${label}: dosis "${kom}" tidak ada di tabel dosis`);
     if (batas > 0 && luas > batas) W(`mt${i}`, `${label}: luas ${luas} Ha melebihi batas ${batas} Ha`);
     const totalPupuk = PUPUK.reduce((s, { key }) => s + num(mt[key]), 0);
-    if (totalPupuk === 0 && dosisFor(kom)) W(`mt${i}`, `${label}: seluruh pupuk 0`);
+    if (totalPupuk === 0 && dosisBerlaku(kom, p)) W(`mt${i}`, `${label}: seluruh pupuk 0`);
   });
 
   if (!adaMt) E('mt0', 'Tidak ada musim tanam terisi — minimal MT1');

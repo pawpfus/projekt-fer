@@ -3,7 +3,7 @@
    ============================================================ */
 
 import {
-  PUPUK, SUBSEKTOR, FIELDS, DOSIS_DEFAULT, SETTINGS_DEFAULT,
+  PUPUK, SUBSEKTOR, FIELDS, DOSIS_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT,
 } from './schema.js';
 import {
   state, load, emit, onChange, uid, cleanKtp, num, numLuas, txt, upper, fmt,
@@ -11,7 +11,7 @@ import {
   recalcMt, recalcPetani, recalcAll, validatePetani, validateAll, summary,
   poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda, cocokkanPoktan,
   isiMusimTanam, sebaranPetani, sebaranLuasKomoditas, sebaranLuasWilayah,
-  sebaranBarisMt, sebaranPupuk,
+  sebaranBarisMt, sebaranPupuk, isPmaas, dosisBerlaku, pmaasRingkas, setPmaas,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
@@ -63,7 +63,7 @@ function go(view) {
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (view === 'periksa') renderPeriksa();
   if (view === 'ekspor') renderEkspor();
-  if (view === 'dosis') renderDosis();
+  if (view === 'dosis') { renderDosis(); renderPmaas(); }
   if (view === 'poktan') renderPoktan();
   if (view === 'setelan') fillSetelan();
 }
@@ -279,7 +279,7 @@ function renderTable() {
       <td><b>${esc(p.namaPetani || '(tanpa nama)')}</b> ${rowChip(p)}
         <span class="sub">${esc(p.namaIbu || '—')}</span></td>
       <td class="mono nowrap">${esc(p.ktp || '—')}</td>
-      <td>${esc(p.namaPoktan || p.idPoktan || '—')}<span class="sub">${esc(p.namaDesa || p.kodeDesa || '—')}</span></td>
+      <td>${esc(p.namaPoktan || p.idPoktan || '—')}${isPmaas(p) ? ' <span class="tag tag-teal">PM-AAS</span>' : ''}<span class="sub">${esc(p.namaDesa || p.kodeDesa || '—')}</span></td>
       <td>${kom(m1)}${m1.manual ? ' <span class="tag tag-amber">manual</span>' : ''}</td>
       <td class="num">${numLuas(m1.luas) ? fmt(numLuas(m1.luas), 2) : '<span class="muted">·</span>'}</td>
       <td class="num">${n(m1.urea)}</td>
@@ -489,7 +489,7 @@ function renderMtPreview(i) {
   const p = editing;
   const mt = p.mt[i];
   const box = $(`[data-mt-prev="${i}"]`);
-  const d = dosisFor(mt.komoditas);
+  const d = dosisBerlaku(mt.komoditas, p);
   box.innerHTML = PUPUK.map(({ key, label }) => {
     const v = num(mt[key]);
     const per = d ? num(d[key]) : 0;
@@ -611,11 +611,11 @@ $('#form').addEventListener('input', (e) => {
   if (iKom != null) {
     const i = +iKom;
     editing.mt[i].komoditas = upper(t.value);
-    recalcMt(editing.mt[i]);
+    recalcMt(editing.mt[i], { petani: editing });
     if (i === 0 && state.settings.salinMt2 && editing._new) {
       editing.mt[1].komoditas = editing.mt[0].komoditas;
       editing.mt[1].luas = editing.mt[0].luas;
-      recalcMt(editing.mt[1]);
+      recalcMt(editing.mt[1], { petani: editing });
       $(`[data-mt-kom="1"]`).innerHTML = komOptions(editing.mt[1].komoditas);
       $(`[data-mt-kom="1"]`).value = upper(editing.mt[1].komoditas);
       $(`[data-mt-luas="1"]`).value = numLuas(editing.mt[1].luas) || '';
@@ -627,10 +627,10 @@ $('#form').addEventListener('input', (e) => {
   if (iLuas != null) {
     const i = +iLuas;
     editing.mt[i].luas = numLuas(t.value);
-    recalcMt(editing.mt[i]);
+    recalcMt(editing.mt[i], { petani: editing });
     if (i === 0 && state.settings.salinMt2 && editing._new) {
       editing.mt[1].luas = editing.mt[0].luas;
-      recalcMt(editing.mt[1]);
+      recalcMt(editing.mt[1], { petani: editing });
       $(`[data-mt-luas="1"]`).value = numLuas(editing.mt[1].luas) || '';
       renderMtPreview(1);
     }
@@ -648,7 +648,7 @@ $('#form').addEventListener('change', (e) => {
   if (i == null || !editing) return;
   const mt = editing.mt[+i];
   mt.manual = e.target.checked;
-  if (!mt.manual) recalcMt(mt, { force: true });
+  if (!mt.manual) recalcMt(mt, { force: true, petani: editing });
   $(`[data-mt-manual-fields="${i}"]`).innerHTML = '';
   renderMtPreview(+i);
   renderFormIssues();
@@ -883,10 +883,13 @@ function renderPoktan() {
       <td><input type="text" class="mono" data-poktan-id="${esc(o.nama)}"
             value="${esc(efektif)}" placeholder="mis. 1048014" /></td>
       <td>${status}</td>
+      <td><label class="check" style="justify-content:center">
+        <input type="checkbox" data-pmaas="${esc(o.nama)}"${state.pmaas.poktan[o.nama] ? ' checked' : ''} />
+      </label></td>
       <td><div class="row-acts"><button class="btn btn-sm btn-icon" data-unduh-poktan="${esc(o.nama)}"
             title="Unduh template ERDKK kelompok ini"><i class="ti ti-download"></i></button></div></td>
     </tr>`;
-  }).join('') || `<tr><td colspan="7"><div class="tbl-empty"><i class="ti ti-users-off"></i><b>Belum ada kelompok tani</b>Nama poktan diambil dari kolom "Nama Poktan" saat impor.</div></td></tr>`;
+  }).join('') || `<tr><td colspan="8"><div class="tbl-empty"><i class="ti ti-users-off"></i><b>Belum ada kelompok tani</b>Nama poktan diambil dari kolom "Nama Poktan" saat impor.</div></td></tr>`;
 
   $('#badgePoktan').textContent = list.length;
   $('#badgePoktan').classList.toggle('warn', belum.length > 0);
@@ -899,6 +902,55 @@ $('#tbodyPoktan').addEventListener('input', (e) => {
   if (v) state.poktanId[nama] = v; else delete state.poktanId[nama];
   emit();
 });
+
+$('#tbodyPoktan').addEventListener('change', (e) => {
+  const nama = e.target.dataset.pmaas;
+  if (nama == null) return;
+  setPmaas(nama, e.target.checked);
+  hitungUlangPmaas([nama]);
+  emit(); renderPoktan(); renderPmaas();
+  toast(`${nama} ${e.target.checked ? 'masuk' : 'keluar dari'} program PM-AAS`);
+});
+
+/** Hitung ulang pupuk anggota kelompok tertentu.
+ *  Baris yang pupuknya diubah manual sengaja dipertahankan — pakai
+ *  "Hitung Ulang" di tab Data bila ingin menimpanya juga. */
+function hitungUlangPmaas(namaList) {
+  const set = namaList ? new Set(namaList.map(upper)) : null;
+  let n = 0;
+  state.petani.forEach((p) => {
+    if (set && !set.has(upper(p.namaPoktan))) return;
+    recalcPetani(p);
+    n++;
+  });
+  return n;
+}
+
+$('#btnPmaasSemua').onclick = () => {
+  const list = poktanRingkas();
+  if (!list.length) return toast('Belum ada data poktan', 'warn');
+  if (!confirm(`Tandai seluruh ${list.length} kelompok sebagai peserta PM-AAS?
+
+` +
+    `Pupuk mereka akan dihitung ulang memakai kuota PM-AAS.`)) return;
+  list.forEach((o) => setPmaas(o.nama, true));
+  const n = hitungUlangPmaas(list.map((o) => o.nama));
+  emit(); renderPoktan(); renderPmaas();
+  toast(`${list.length} kelompok masuk PM-AAS · ${fmt(n)} baris dihitung ulang`);
+};
+
+$('#btnPmaasBersih').onclick = () => {
+  const nama = Object.keys(state.pmaas.poktan);
+  if (!nama.length) return toast('Belum ada kelompok PM-AAS', 'warn');
+  if (!confirm(`Keluarkan ${nama.length} kelompok dari PM-AAS?
+
+` +
+    `Pupuk mereka kembali memakai dosis komoditas.`)) return;
+  state.pmaas.poktan = {};
+  const n = hitungUlangPmaas(nama);
+  emit(); renderPoktan(); renderPmaas();
+  toast(`${nama.length} kelompok keluar PM-AAS · ${fmt(n)} baris dihitung ulang`);
+};
 
 $('#tbodyPoktan').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-unduh-poktan]');
@@ -1006,6 +1058,49 @@ function renderDosis() {
   $('#dmYear').value = m.year; $('#dmProv').value = m.namaProv;
   $('#dmKab').value = m.namaKab; $('#dmKec').value = m.namaKec;
 }
+
+/* ── kuota PM-AAS ────────────────────────────────────────── */
+
+const PM_FIELD = { '#pmUrea': 'urea', '#pmNpk': 'npk', '#pmOrganik': 'organik', '#pmNpkF': 'npkFormula' };
+
+function renderPmaas() {
+  Object.entries(PM_FIELD).forEach(([sel, key]) => {
+    if (document.activeElement !== $(sel)) $(sel).value = num(state.pmaas.dosis[key]);
+  });
+  const r = pmaasRingkas();
+  $('#pmaasPill').textContent = `${r.poktan} kelompok · ${fmt(r.petani)} petani`;
+
+  const d = state.pmaas.dosis;
+  const contoh = (ha) => PUPUK
+    .filter(({ key }) => num(d[key]) > 0)
+    .map(({ key, label }) => `${label} ${fmt(Math.round(num(d[key]) * ha))} kg`).join(' · ');
+
+  $('#pmaasDaftar').innerHTML = r.poktan
+    ? `<div class="section-label" style="margin-top:4px">Kelompok peserta (${r.poktan})</div>
+       <div class="inline" style="gap:6px">${r.nama.map((n) => `<span class="tag tag-teal">${esc(n)}</span>`).join('')}</div>
+       <div class="divider"></div>
+       <div class="kv"><span>Petani terdampak</span><b>${fmt(r.petani)}</b></div>
+       <div class="kv"><span>Luas terdampak</span><b>${fmt(r.luas, 2)} Ha</b></div>
+       <div class="kv"><span>Contoh 1 Ha</span><b>${esc(contoh(1)) || '—'}</b></div>`
+    : `<div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div>
+        <b>Belum ada kelompok peserta</b>
+        Kuota ini belum dipakai. Tandai kelompoknya di kolom <b>PM-AAS</b> pada tab <b>ID Poktan</b>.</div></div>`;
+}
+
+Object.entries(PM_FIELD).forEach(([sel, key]) => {
+  $(sel).oninput = (e) => {
+    state.pmaas.dosis[key] = Math.max(0, num(e.target.value));
+    hitungUlangPmaas(Object.keys(state.pmaas.poktan));
+    emit(); renderPmaas();
+  };
+});
+
+$('#btnPmaasReset').onclick = () => {
+  state.pmaas.dosis = { ...PMAAS_DEFAULT };
+  hitungUlangPmaas(Object.keys(state.pmaas.poktan));
+  emit(); renderPmaas();
+  toast('Kuota PM-AAS dikembalikan: 300 Urea · 400 NPK · 1.000 Organik');
+};
 
 $('#tbodyDosis').addEventListener('input', (e) => {
   const tr = e.target.closest('tr[data-i]');
@@ -1339,6 +1434,7 @@ $('#btnReset').onclick = () => {
   state.dosis = DOSIS_DEFAULT.map((d) => ({ ...d }));
   state.settings = { ...SETTINGS_DEFAULT };
   state.poktanId = {};
+  state.pmaas = { dosis: { ...PMAAS_DEFAULT }, poktan: {} };
   emit(); fillSetelan(); renderDosis(); renderPoktan(); go('data');
   toast('Semua data dihapus');
 };
@@ -1370,6 +1466,7 @@ applyTheme(localStorage.getItem(THEME_KEY)
 $('#mtFields').innerHTML = mtFieldsHtml();
 load();
 renderDosis();
+renderPmaas();
 fillSetelan();
 renderAll();
 

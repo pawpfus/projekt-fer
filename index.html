@@ -180,6 +180,8 @@
         <div class="topbar-spacer"></div>
         <button class="btn btn-sm" id="btnPoktanTempel"><i class="ti ti-clipboard"></i>Tempel Massal</button>
         <button class="btn btn-sm" id="btnPoktanFile"><i class="ti ti-file-import"></i>Impor dari Berkas</button>
+        <button class="btn btn-sm" id="btnPmaasSemua"><i class="ti ti-seeding"></i>PM-AAS: semua</button>
+        <button class="btn btn-sm" id="btnPmaasBersih"><i class="ti ti-seeding-off"></i>PM-AAS: bersihkan</button>
         <button class="btn btn-sm btn-primary" id="btnPoktanTerap"><i class="ti ti-check"></i>Terapkan ke Semua Baris</button>
         <input type="file" id="filePoktan" accept=".xlsx,.xls,.csv" hidden />
       </div>
@@ -197,6 +199,7 @@
             <thead><tr>
               <th style="width:34px">#</th><th>Nama Poktan</th><th class="num">Anggota</th>
               <th class="num">Luas MT1 (Ha)</th><th style="width:200px">ID Poktan</th><th>Status</th>
+              <th style="width:78px">PM-AAS</th>
               <th style="width:52px"></th>
             </tr></thead>
             <tbody id="tbodyPoktan"></tbody>
@@ -234,6 +237,33 @@
         </div>
       </div>
     </div>
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><i class="ti ti-seeding"></i>Kuota Pupuk PM-AAS</div>
+        <div class="topbar-spacer"></div>
+        <span class="pill" id="pmaasPill">0 kelompok</span>
+        <button class="btn btn-sm" id="btnPmaasReset"><i class="ti ti-rotate"></i>Kembalikan Bawaan</button>
+      </div>
+      <div class="card-body stack">
+        <div class="alert alert-info">
+          <i class="ti ti-info-circle"></i>
+          <div><b>Menimpa dosis komoditas untuk kelompok peserta</b>
+            Kelompok yang ditandai PM-AAS di tab <b>ID Poktan</b> memakai kuota di bawah ini,
+            bukan dosis komoditasnya. Kelompok lain tidak terpengaruh.</div>
+        </div>
+        <div class="grid g4">
+          <div class="field"><label>Urea (kg/Ha)</label><input type="number" class="mono" id="pmUrea" min="0" step="1" /></div>
+          <div class="field"><label>NPK (kg/Ha)</label><input type="number" class="mono" id="pmNpk" min="0" step="1" /></div>
+          <div class="field">
+            <label>Organik (kg/Ha)</label><input type="number" class="mono" id="pmOrganik" min="0" step="50" />
+            <span class="hint">Rekomendasi 1–2 ton = 1.000–2.000 kg</span>
+          </div>
+          <div class="field"><label>NPK Formula (kg/Ha)</label><input type="number" class="mono" id="pmNpkF" min="0" step="1" /></div>
+        </div>
+        <div id="pmaasDaftar"></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-body">
         <div class="alert alert-warn">

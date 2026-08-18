@@ -60,6 +60,12 @@ export const DOSIS_DEFAULT = [
   { komoditas: 'TEBU RAKYAT',  subsektor: 'PERKEBUNAN',     urea: 0,   npk: 1200, npkFormula: 0,   organik: 500, za: 108, sp36: 0, poc: 0 },
 ];
 
+/** Kuota pupuk program PM-AAS (Pertanian Modern Advanced Agriculture System)
+ *  per hektar. Organik 1-2 ton — bawaan 1 ton, bisa disetel di tab Dosis. */
+export const PMAAS_DEFAULT = {
+  urea: 300, npk: 400, organik: 1000, npkFormula: 0, za: 0, sp36: 0, poc: 0,
+};
+
 export const DOSIS_META_DEFAULT = {
   year: 2026,
   kodeProv: '73', namaProv: 'SULAWESI SELATAN',

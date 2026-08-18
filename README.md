@@ -24,6 +24,9 @@ server dan tidak ada data yang dikirim ke mana pun.
   disatukan menjadi satu baris, luas tiap musim tanam dijumlahkan dan pupuk dihitung ulang.
   NIK ganda **bukan masalah** di aplikasi ini: data diekspor apa adanya sesuai database,
   biar portal e-RDKK yang menilai.
+- **Program PM-AAS** — tandai kelompok pesertanya di tab ID Poktan, lalu kuota
+  pupuknya (bawaan 300 kg Urea, 400 kg NPK, 1.000 kg Organik per hektar; organik
+  bisa disetel 1–2 ton) menimpa dosis komoditas hanya untuk anggota kelompok itu.
 - **Tabel dosis** bisa disunting, diimpor dari berkas `Dosis_<tahun>_..._<kecamatan>.xlsx`,
   atau dikembalikan ke bawaan.
 - **Pemeriksaan** sebelum ekspor: NIK bukan 16 digit, NIK ganda, kolom wajib kosong,
