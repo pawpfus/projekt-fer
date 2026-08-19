@@ -647,7 +647,8 @@ fieldset.mt legend {
      menang adalah yang terakhir ditulis */
   .card-head > .btn-icon,
   .card-head > .icon-btn { flex: 0 0 auto; order: 2; }
-  .card-head > .pill { flex: 1 1 100%; text-align: center; order: 3; }
+  /* pil status bukan aksi — biarkan sebesar isinya dan mendahului tombol */
+  .card-head > .pill { flex: 0 1 auto; order: 1; }
 
   /* sasaran sentuh — 40px minimum */
   .btn { min-height: 42px; padding: 10px 14px; }
