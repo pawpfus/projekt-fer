@@ -1056,14 +1056,14 @@ $('#filePoktan').onchange = async (e) => {
 function renderDosis() {
   $('#tbodyDosis').innerHTML = state.dosis.map((d, i) => `
     <tr data-i="${i}">
-      <td><input type="text" data-d="komoditas" value="${esc(d.komoditas)}" style="min-width:130px" /></td>
-      <td><select data-d="subsektor" style="min-width:140px">
+      <td><input type="text" class="cell" data-d="komoditas" value="${esc(d.komoditas)}" style="min-width:130px" /></td>
+      <td><select class="cell" data-d="subsektor" style="min-width:150px">
         ${SUBSEKTOR.map((s) => `<option value="${esc(s)}"${upper(d.subsektor) === s ? ' selected' : ''}>${esc(s)}</option>`).join('')}
       </select></td>
-      ${['urea', 'npk', 'npkFormula', 'organik', 'za', 'sp36', 'poc'].map((k) =>
-        `<td class="num"><input type="number" min="0" step="1" class="mono" data-d="${k}" value="${num(d[k])}" style="width:82px;text-align:right" /></td>`).join('')}
+      ${['urea', 'npk', 'npkFormula', 'organik', 'za'].map((k) =>
+        `<td class="num"><input type="number" min="0" step="1" class="mono cell" data-d="${k}" value="${num(d[k])}" /></td>`).join('')}
       <td><button class="btn btn-sm btn-icon btn-danger" data-del-dosis><i class="ti ti-trash"></i></button></td>
-    </tr>`).join('') || `<tr><td colspan="10"><div class="tbl-empty"><i class="ti ti-flask-off"></i><b>Tabel dosis kosong</b>Impor berkas dosis atau kembalikan bawaan.</div></td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="8"><div class="tbl-empty"><i class="ti ti-flask-off"></i><b>Tabel dosis kosong</b>Impor berkas dosis atau kembalikan bawaan.</div></td></tr>`;
 
   $('#badgeDosis').textContent = state.dosis.length;
   const m = state.dosisMeta;

@@ -272,6 +272,8 @@ body::before {
 
 .viz-kosong { padding: 40px 20px; text-align: center; color: var(--ink-3); font-size: 12.5px; }
 
+
+
 /* Ubin ringkasan sengaja dibuat lebih lembut daripada komponen lain:
    tanpa garis aksen, sudut membulat, label huruf biasa. */
 .stat {
@@ -576,3 +578,15 @@ fieldset.mt legend {
   .nav { padding: 0 12px; }
   .hide-sm { display: none !important; }
 }
+
+/* ── INPUT DALAM SEL TABEL ──────────────────────────────── */
+/* Tabel yang tiap selnya bisa disunting jadi dinding kotak. Bidangnya
+   dibiarkan polos; garis tepi baru muncul saat ditunjuk atau difokus. */
+td input.cell, td select.cell {
+  background: transparent; border-color: transparent;
+  padding: 5px 7px; border-radius: var(--r-sm);
+}
+td input.cell:hover, td select.cell:hover { background: var(--soft); border-color: var(--line); }
+td input.cell:focus, td select.cell:focus { background: var(--card); border-color: var(--accent-line); }
+td.num input.cell { text-align: right; width: 86px; }
+td select.cell { background-position: calc(100% - 12px) 50%, calc(100% - 7px) 50%; padding-right: 26px; }
