@@ -708,6 +708,11 @@ fieldset.mt legend {
      bawahnya akan menembus nama petani saat digulir mendatar */
   #tbl tbody tr.bad td:nth-child(2) { background: color-mix(in srgb, var(--danger) 9%, var(--card)); }
   #tbl tbody tr.bad:hover td:nth-child(2) { background: color-mix(in srgb, var(--danger) 16%, var(--card)); }
+  /* saat kosong tak ada yang perlu digulir mendatar — sembunyikan judul
+     kolom supaya lebar tabel menciut dan pesannya benar-benar di tengah
+     layar, bukan di tengah 16 kolom yang lebarnya 650px */
+  #tbl:not(:has(tbody tr[data-id])) { width: 100%; }
+  #tbl:not(:has(tbody tr[data-id])) thead { display: none; }
   .tbl-scroll { max-height: 58vh; }
 
   /* tabel ID Poktan: buang nomor & luas, bekukan nama kelompok supaya
