@@ -347,6 +347,14 @@ select { cursor: pointer; appearance: none;
 .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .toolbar .search { position: relative; flex: 1 1 220px; min-width: 200px; }
 .toolbar > select { width: auto; min-width: 132px; flex: 0 1 auto; }
+/* tombol Saring hanya berguna di ponsel — di layar lebar saringan selalu tampil */
+#btnSaring { display: none; }
+@media (max-width: 640px) { #btnSaring { display: inline-flex; } }
+#btnSaring .jml {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  background: var(--accent); color: var(--accent-ink);
+  border-radius: 999px; padding: 1px 6px; margin-left: 2px;
+}
 
 /* kepala kartu dua baris: saringan di atas, tombol aksi di bawah kanan */
 .card-head.stackhead { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -571,12 +579,120 @@ fieldset.mt legend {
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
+/* ============================================================
+   PONSEL — layar ≤ 640px
+   Prinsip: judul kartu sebaris penuh, tombol berbagi baris rata dan
+   cukup besar untuk jempol, tabel dipangkas ke kolom yang berarti
+   dengan nama petani dibekukan di kiri.
+   ============================================================ */
 @media (max-width: 640px) {
-  .wrap { padding: 12px; }
-  .brand-sub { display: none; }
-  .topbar { padding: 0 12px; }
+  .wrap { padding: 14px 12px 48px; }
+  .topbar { padding: 0 12px; gap: 8px; }
   .nav { padding: 0 12px; }
   .hide-sm { display: none !important; }
+  .brand-sub { display: none; }
+  .brand-name { font-size: 15px; }
+  .brand-mark { width: 30px; height: 30px; }
+
+  .card-body { padding: 14px; }
+  .card-body.flush { padding: 0; }
+  .card-head { padding: 12px 14px; gap: 8px; }
+  .card-title { font-size: 14px; }
+
+  /* judul mengambil satu baris penuh, tombol berbagi baris di bawahnya
+     — mencegah tombol tunggal menggantung sendirian */
+  .card-head > .card-title { flex: 1 1 100%; }
+  .card-head > .topbar-spacer { display: none; }
+  .card-head > .card-desc { flex: 1 1 100%; }
+  /* basis 140px: dua tombol per baris, sisanya membungkus — jangan pakai
+     flex-basis 0 karena label jadi terhimpit dan saling menindih */
+  .card-head > .btn { flex: 1 1 140px; justify-content: center; }
+  .card-head > .btn-icon { flex: 0 0 auto; }
+  .card-head > .pill { flex: 1 1 100%; text-align: center; }
+
+  /* sasaran sentuh — 40px minimum */
+  .btn { min-height: 42px; padding: 10px 14px; }
+  .btn-sm { min-height: 40px; padding: 9px 12px; }
+  .btn-icon { width: 40px; height: 40px; padding: 0; }
+  .icon-btn { width: 40px; height: 40px; }
+  input[type=text], input[type=number], input[type=search], select { min-height: 42px; }
+  td input.cell, td select.cell { min-height: 36px; }
+  .check input { width: 20px; height: 20px; }
+
+  /* toolbar jadi kisi rapi, bukan bungkus acak. Saringan disembunyikan di
+     balik tombol Saring supaya kepala kartu tidak setinggi separuh layar. */
+  .card-head.stackhead { gap: 8px; }
+  .card-head.stackhead .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .card-head.stackhead .toolbar .search { grid-column: 1 / -1; }
+  .card-head.stackhead .toolbar > select { width: 100%; min-width: 0; display: none; }
+  .card-head.stackhead .toolbar.saring-buka > select { display: block; }
+  .card-head.stackhead .toolbar > #btnSaring,
+  .card-head.stackhead .toolbar > #btnBersihSaring { grid-column: 1 / -1; }
+  /* penghitung baris sudah tampil di pil topbar — tak perlu diulang */
+  .card-head.stackhead .toolbar-act .tally { display: none; }
+  .card-head.stackhead .toolbar-act { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* tabel petani: baris kelompok disembunyikan (tak terbaca di lebar ini),
+     kolom bernilai rendah dipangkas, nama petani dibekukan di kiri */
+  #tbl .grouprow { display: none; }
+  #tbl thead tr:nth-child(2) th:nth-child(1),
+  #tbl tbody tr[data-id] td:nth-child(1),
+  #tbl thead tr:nth-child(2) th:nth-child(9),
+  #tbl tbody tr[data-id] td:nth-child(9),
+  #tbl thead tr:nth-child(2) th:nth-child(11),
+  #tbl tbody tr[data-id] td:nth-child(11),
+  #tbl thead tr:nth-child(2) th:nth-child(14),
+  #tbl tbody tr[data-id] td:nth-child(14),
+  #tbl thead tr:nth-child(2) th:nth-child(15),
+  #tbl tbody tr[data-id] td:nth-child(15) { display: none; }
+
+  #tbl thead tr:nth-child(2) th:nth-child(2),
+  #tbl tbody tr[data-id] td:nth-child(2) {
+    position: sticky; left: 0; z-index: 4;
+    border-right: 1px solid var(--line-2);
+  }
+  #tbl tbody tr[data-id] td:nth-child(2) { background: var(--card); }
+  #tbl tbody tr[data-id]:hover td:nth-child(2) { background: var(--soft); }
+  #tbl tbody tr.bad td:nth-child(2) { background: var(--danger-bg); }
+  .tbl-scroll { max-height: 58vh; }
+
+  /* tabel ID Poktan: buang nomor & luas, bekukan nama kelompok supaya
+     kolom isian ID dan centang PM-AAS tetap punya konteks */
+  #tblPoktan th:nth-child(1), #tblPoktan tbody tr[data-poktan] td:nth-child(1),
+  #tblPoktan th:nth-child(4), #tblPoktan tbody tr[data-poktan] td:nth-child(4),
+  #tblPoktan th:nth-child(6), #tblPoktan tbody tr[data-poktan] td:nth-child(6) { display: none; }
+  #tblPoktan th:nth-child(2),
+  #tblPoktan tbody tr[data-poktan] td:nth-child(2) {
+    position: sticky; left: 0; z-index: 4;
+    border-right: 1px solid var(--line-2); max-width: 130px;
+  }
+  #tblPoktan tbody tr[data-poktan] td:nth-child(2) { background: var(--card); }
+  #tblPoktan tbody tr[data-poktan]:hover td:nth-child(2) { background: var(--soft); }
+
+  /* infografik lebih ringkas supaya tidak jadi gulungan panjang */
+  .viz-grid { gap: 18px; }
+  .viz-donut { max-width: 128px; margin-bottom: 10px; }
+  .viz-center b { font-size: 17px; }
+  .viz-legend li { font-size: 11px; gap: 6px; }
+
+  /* laci & modal memenuhi layar, hormati area aman perangkat */
+  .drawer { width: 100vw; }
+  .drawer-body, .modal-body { padding: 14px; }
+  .drawer-head, .modal-head { padding: 12px 14px; }
+  .drawer-foot, .modal-foot {
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    flex-wrap: wrap;
+  }
+  .drawer-foot .btn, .modal-foot .btn { flex: 1 1 auto; justify-content: center; }
+  .modal { width: calc(100vw - 16px); max-height: calc(100vh - 24px); }
+  .pupuk-preview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  /* pemetaan kolom saat impor: dua baris, bukan tiga kolom sempit */
+  .maprow { grid-template-columns: 1fr; gap: 4px; }
+  .maprow .arr { display: none; }
+
+  .issue { grid-template-columns: 24px 1fr; }
+  .issue .tag { grid-column: 2; justify-self: start; }
 }
 
 /* ── INPUT DALAM SEL TABEL ──────────────────────────────── */

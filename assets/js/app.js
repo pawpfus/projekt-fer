@@ -320,8 +320,10 @@ function renderTable() {
 function ukurHeaderKelompok() {
   const r = $('#tbl thead tr.grouprow');
   if (!r) return;
+  // di ponsel baris kelompok disembunyikan (tinggi 0) — offset harus ikut 0,
+  // kalau tidak tingkat kedua menggantung 26px dari atas
   const h = Math.round(r.getBoundingClientRect().height);
-  if (h > 0) $('#tbl').style.setProperty('--grouph', h + 'px');
+  $('#tbl').style.setProperty('--grouph', h + 'px');
 }
 addEventListener('resize', ukurHeaderKelompok);
 
@@ -330,9 +332,25 @@ function renderTally(tampil) {
   const total = state.petani.length;
   const menyaring = tampil !== total;
   $('#btnBersihSaring').hidden = !menyaring;
+  renderTombolSaring();
   $('#tally').textContent = !total ? ''
     : menyaring ? `${fmt(tampil)} dari ${fmt(total)} baris` : `${fmt(total)} baris`;
 }
+
+/* Saringan di ponsel disembunyikan sampai diminta; lencana angka memberi
+   tahu berapa saringan yang sedang aktif meski panelnya tertutup. */
+const SARING = ['#fDesa', '#fPoktan', '#fKom', '#fStatus'];
+function renderTombolSaring() {
+  const aktif = SARING.filter((s) => $(s).value).length;
+  $('#btnSaring').innerHTML =
+    `<i class="ti ti-filter"></i>Saring${aktif ? `<span class="jml">${aktif}</span>` : ''}`;
+}
+$('#btnSaring').onclick = () => {
+  const t = $('.card-head.stackhead .toolbar');
+  t.classList.toggle('saring-buka');
+  $('#btnSaring').title = t.classList.contains('saring-buka')
+    ? 'Sembunyikan pilihan saringan' : 'Tampilkan pilihan saringan';
+};
 
 $('#btnBersihSaring').onclick = () => {
   $('#q').value = '';
@@ -746,7 +764,7 @@ dz.ondrop = (e) => {
 };
 $('#fileImp').onchange = (e) => { if (e.target.files[0]) muatImpor(e.target.files[0]); e.target.value = ''; };
 
-/** Berkas di atas ambang ini membekukan tab saat dirender; tolak lebih awal. */
+/** Berkas raksasa membekukan tab saat dirender — tolak lebih awal. */
 const BATAS_UKURAN_MB = 25;
 const BATAS_BARIS = 20000;
 
@@ -1456,27 +1474,28 @@ function fillSetelan() {
 
 $('#sJanganSimpan').onchange = (e) => {
   const on = e.target.checked;
-  if (on && !confirm('Data tidak akan disimpan di peramban ini.
-
-' +
-    'Begitu tab ditutup atau dimuat ulang, seluruh data petani hilang. ' +
-    'Unduh cadangan lebih dulu bila perlu.
-
-Lanjutkan?')) {
-    e.target.checked = false; return;
-  }
+  const pesan = [
+    'Data tidak akan disimpan di peramban ini.',
+    '',
+    'Begitu tab ditutup atau dimuat ulang, seluruh data petani hilang.',
+    'Unduh cadangan lebih dulu bila perlu.',
+    '',
+    'Lanjutkan?',
+  ].join('\n');
+  if (on && !confirm(pesan)) { e.target.checked = false; return; }
   setJanganSimpan(on);
   toast(on ? 'Mode tanpa simpan aktif — data hanya bertahan di tab ini'
            : 'Data kembali disimpan di peramban ini', on ? 'warn' : 'ok');
 };
 
 $('#btnKunci').onclick = () => {
-  if (!confirm('Kosongkan data petani dari layar dan penyimpanan peramban?
-
-' +
-    'Berkas cadangan dan hasil ekspor yang sudah diunduh tidak tersentuh.
-' +
-    'Gunakan ini sebelum meninggalkan komputer bersama.')) return;
+  const pesan = [
+    'Kosongkan data petani dari layar dan penyimpanan peramban?',
+    '',
+    'Berkas cadangan dan hasil ekspor yang sudah diunduh tidak tersentuh.',
+    'Gunakan ini sebelum meninggalkan komputer bersama.',
+  ].join('\n');
+  if (!confirm(pesan)) return;
   bersihkanSesi();
   emit(); renderPoktan(); renderPmaas(); go('data');
   toast('Sesi dibersihkan — tidak ada data petani tersisa di peramban ini');
