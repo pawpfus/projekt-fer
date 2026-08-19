@@ -610,17 +610,36 @@ fieldset.mt legend {
   .card-head { padding: 12px 14px; gap: 8px; }
   .card-title { font-size: 14px; }
 
-  /* judul mengambil satu baris penuh, tombol berbagi baris di bawahnya
-     — mencegah tombol tunggal menggantung sendirian */
-  .card-head > .card-title { flex: 1 1 100%; }
+  /* irama tegak seragam: jarak antar blok 14px, tidak ada yang menganga */
+  .card + .card { margin-top: 14px; }
+  .stack { gap: 12px; }
+  .alert + .alert { margin-top: 8px; }
+
+  /* enam ubin statistik memakan sepertiga layar kalau dibiarkan sebesar
+     versi desktop — dirapatkan jadi dua kolom yang pendek */
+  .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stats + .card { margin-top: 14px; }
+  .stat { padding: 11px 13px; border-radius: 12px; }
+  .stat-k { font-size: 11px; }
+  .stat-v { font-size: 18px; }
+  .stat-u { font-size: 10.5px; }
+
+  /* Kepala kartu punya tiga tingkat yang tegas, bukan tumpukan acak:
+       baris 1  judul + tombol ikon (lipat, hapus) — selalu bersama
+       baris 2  tombol biasa, berbagi lebar sama rata
+       baris 3  tombol utama, selebar kartu
+     Tombol tak boleh menyusut di bawah lebar labelnya (min-width), dan
+     tak boleh melar sendirian selebar layar (grow hanya berlaku saat
+     berbagi baris). */
+  .card-head { row-gap: 10px; }
+  .card-head > .card-title { flex: 1 1 auto; min-width: 0; }
   .card-head > .topbar-spacer { display: none; }
-  .card-head > .card-desc { flex: 1 1 100%; }
-  /* tombol selebar isinya lalu membungkus. Jangan diberi flex-grow: tombol
-     terakhir di satu baris akan melar sendirian selebar layar. Jangan pula
-     flex-basis 0: labelnya terhimpit sampai saling menindih. */
-  .card-head > .btn { flex: 0 1 auto; min-width: max-content; justify-content: center; }
-  .card-head > .btn-icon { flex: 0 0 auto; }
-  .card-head > .pill { flex: 1 1 100%; text-align: center; }
+  .card-head > .card-desc { flex: 1 1 100%; order: 4; }
+  .card-head > .btn-icon,
+  .card-head > .icon-btn { flex: 0 0 auto; order: 1; }
+  .card-head > .btn { flex: 1 1 auto; min-width: max-content; justify-content: center; order: 2; }
+  .card-head > .btn-primary { flex: 1 1 100%; order: 3; }
+  .card-head > .pill { flex: 1 1 100%; text-align: center; order: 3; }
 
   /* sasaran sentuh — 40px minimum */
   .btn { min-height: 42px; padding: 10px 14px; }
@@ -642,12 +661,14 @@ fieldset.mt legend {
   .card-head.stackhead .toolbar > #btnBersihSaring { grid-column: 1 / -1; }
   /* penghitung baris sudah tampil di pil topbar — tak perlu diulang */
   .card-head.stackhead .toolbar-act .tally { display: none; }
-  /* baris aksi tetap flex: kisi dua kolom membuat tombol ikon sendirian
-     memenuhi setengah baris */
+  /* baris aksi mengikuti aturan yang sama dengan kepala kartu: tombol
+     biasa berbagi satu baris, tombol utama memenuhi baris sendiri */
   .card-head.stackhead .toolbar-act {
-    display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;
+    display: flex; flex-wrap: wrap; gap: 8px;
   }
-  .card-head.stackhead .toolbar-act > .btn { flex: 0 1 auto; min-width: max-content; }
+  .card-head.stackhead .toolbar-act > .btn { flex: 1 1 auto; min-width: max-content; }
+  .card-head.stackhead .toolbar-act > .btn-icon { flex: 0 0 auto; }
+  .card-head.stackhead .toolbar-act > .btn-primary { flex: 1 1 100%; }
 
   /* tabel petani: baris kelompok disembunyikan (tak terbaca di lebar ini),
      kolom bernilai rendah dipangkas, nama petani dibekukan di kiri */
@@ -683,8 +704,13 @@ fieldset.mt legend {
   /* tabel ID Poktan: buang nomor & luas, bekukan nama kelompok supaya
      kolom isian ID dan centang PM-AAS tetap punya konteks */
   #tblPoktan th:nth-child(1), #tblPoktan tbody tr[data-poktan] td:nth-child(1),
+  #tblPoktan th:nth-child(3), #tblPoktan tbody tr[data-poktan] td:nth-child(3),
   #tblPoktan th:nth-child(4), #tblPoktan tbody tr[data-poktan] td:nth-child(4),
   #tblPoktan th:nth-child(6), #tblPoktan tbody tr[data-poktan] td:nth-child(6) { display: none; }
+  /* kolom ID adalah alasan tab ini ada — beri lebar cukup untuk tujuh
+     angka, jangan sampai terpotong seperti "10480…" */
+  #tblPoktan th:nth-child(5) { width: auto; }
+  #tblPoktan tbody tr[data-poktan] td:nth-child(5) input { width: 100%; min-width: 104px; }
   #tblPoktan th:nth-child(2),
   #tblPoktan tbody tr[data-poktan] td:nth-child(2) {
     position: sticky; left: 0;
