@@ -12,6 +12,7 @@ import {
   poktanRingkas, terapkanPoktanId, nikGanda, gabungNikGanda, cocokkanPoktan,
   isiMusimTanam, sebaranPetani, sebaranLuasKomoditas, sebaranLuasWilayah,
   sebaranBarisMt, sebaranPupuk, isPmaas, dosisBerlaku, pmaasRingkas, setPmaas,
+  janganSimpan, setJanganSimpan, bersihkanSesi,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
@@ -624,6 +625,13 @@ document.addEventListener('keydown', (e) => {
   else if ($('#drawer').classList.contains('open')) closeDrawer();
 });
 
+/* Enter di dalam formulir tidak boleh men-submit — halaman ter-reload dan
+   isian yang belum disimpan hilang. */
+$('#form').addEventListener('submit', (e) => e.preventDefault());
+$('#form').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT') e.preventDefault();
+});
+
 $('#form').addEventListener('input', (e) => {
   if (!editing) return;
   const t = e.target;
@@ -738,8 +746,16 @@ dz.ondrop = (e) => {
 };
 $('#fileImp').onchange = (e) => { if (e.target.files[0]) muatImpor(e.target.files[0]); e.target.value = ''; };
 
+/** Berkas di atas ambang ini membekukan tab saat dirender; tolak lebih awal. */
+const BATAS_UKURAN_MB = 25;
+const BATAS_BARIS = 20000;
+
 async function muatImpor(file) {
   try {
+    const mb = file.size / (1024 * 1024);
+    if (mb > BATAS_UKURAN_MB) {
+      return toast(`Berkas ${mb.toFixed(1)} MB melebihi batas ${BATAS_UKURAN_MB} MB`, 'err');
+    }
     const wb = readWorkbook(await readFile(file));
     imp = { wb, sheets: wb.SheetNames, sheet: wb.SheetNames[0], nama: file.name };
     $('#impSheet').innerHTML = imp.sheets.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
@@ -756,6 +772,10 @@ async function muatImpor(file) {
 function pilihSheet(name) {
   imp.sheet = name;
   imp.matrix = sheetToMatrix(imp.wb, name);
+  if (imp.matrix.length > BATAS_BARIS) {
+    toast(`Sheet berisi ${fmt(imp.matrix.length)} baris — dipotong ke ${fmt(BATAS_BARIS)}`, 'warn');
+    imp.matrix = imp.matrix.slice(0, BATAS_BARIS);
+  }
   imp.headerRow = guessHeaderRow(imp.matrix);
   imp.map = autoMap(imp.matrix[imp.headerRow] || []);
   $('#impHeaderRow').value = imp.headerRow + 1;
@@ -1431,7 +1451,36 @@ function fillSetelan() {
   Object.entries(SET_MAP).forEach(([sel, key]) => ($(sel).value = state.settings[key] ?? ''));
   $('#sBatas').value = state.settings.batasLuas;
   $('#sSalinMt2').checked = !!state.settings.salinMt2;
+  $('#sJanganSimpan').checked = janganSimpan;
 }
+
+$('#sJanganSimpan').onchange = (e) => {
+  const on = e.target.checked;
+  if (on && !confirm('Data tidak akan disimpan di peramban ini.
+
+' +
+    'Begitu tab ditutup atau dimuat ulang, seluruh data petani hilang. ' +
+    'Unduh cadangan lebih dulu bila perlu.
+
+Lanjutkan?')) {
+    e.target.checked = false; return;
+  }
+  setJanganSimpan(on);
+  toast(on ? 'Mode tanpa simpan aktif — data hanya bertahan di tab ini'
+           : 'Data kembali disimpan di peramban ini', on ? 'warn' : 'ok');
+};
+
+$('#btnKunci').onclick = () => {
+  if (!confirm('Kosongkan data petani dari layar dan penyimpanan peramban?
+
+' +
+    'Berkas cadangan dan hasil ekspor yang sudah diunduh tidak tersentuh.
+' +
+    'Gunakan ini sebelum meninggalkan komputer bersama.')) return;
+  bersihkanSesi();
+  emit(); renderPoktan(); renderPmaas(); go('data');
+  toast('Sesi dibersihkan — tidak ada data petani tersisa di peramban ini');
+};
 
 Object.entries(SET_MAP).forEach(([sel, key]) => {
   $(sel).oninput = (e) => { state.settings[key] = e.target.value; emit(); };

@@ -7,11 +7,8 @@
 <meta name="description" content="Isi template ERDKK secara otomatis dari database poktan. Dosis pupuk dihitung dari luas lahan, hasil siap unggah ke erdkk25.pertanian.go.id." />
 <meta name="theme-color" content="#014421" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23014421'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='%23fff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" />
+<link rel="stylesheet" href="assets/css/fonts.css" />
+<link rel="stylesheet" href="assets/css/icons.css" />
 <link rel="stylesheet" href="assets/css/app.css" />
 </head>
 <body>
@@ -419,8 +416,15 @@
         <div class="card">
           <div class="card-head"><div class="card-title"><i class="ti ti-alert-octagon"></i>Zona Berbahaya</div></div>
           <div class="card-body stack">
-            <p class="muted" style="font-size:12.5px">Data tersimpan di peramban ini saja (localStorage) — tidak dikirim ke server mana pun. Unduh cadangan sebelum menghapus.</p>
-            <button class="btn btn-danger" id="btnReset" style="align-self:flex-start"><i class="ti ti-trash"></i>Hapus Semua Data</button>
+            <p class="muted" style="font-size:12.5px">Data tersimpan di peramban ini saja &mdash; tidak dikirim ke server mana pun.
+              Isinya memuat NIK dan nama ibu kandung, jadi perlakukan seperti dokumen kependudukan.
+              Unduh cadangan sebelum menghapus.</p>
+            <label class="check"><input type="checkbox" id="sJanganSimpan" />
+              <span>Jangan simpan di peramban ini<small>Data hanya bertahan selama tab terbuka. Wajib dipakai di komputer bersama atau akun bersama.</small></span></label>
+            <div class="inline">
+              <button class="btn btn-danger" id="btnReset"><i class="ti ti-trash"></i>Hapus Semua Data</button>
+              <button class="btn" id="btnKunci" title="Kosongkan layar dan penyimpanan tanpa menghapus berkas cadangan"><i class="ti ti-lock"></i>Kunci &amp; Bersihkan Sesi</button>
+            </div>
           </div>
         </div>
       </div>
@@ -437,7 +441,7 @@
     <button class="icon-btn" id="drawerClose"><i class="ti ti-x"></i></button>
   </div>
   <div class="drawer-body">
-    <form id="form" autocomplete="off">
+    <form id="form" autocomplete="off" novalidate>
       <div class="section-label">Identitas</div>
       <div class="grid g2">
         <div class="field"><label>Nama Petani <span class="hint">(tidak diekspor)</span></label><input type="text" name="namaPetani" /></div>

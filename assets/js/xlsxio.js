@@ -263,6 +263,14 @@ export function buildTemplateWorkbook(list, opts = {}) {
     if (cell) { cell.t = 's'; cell.z = '@'; cell.v = String(cell.v ?? ''); }
   }
 
+  // Jaminan berlapis: tidak satu pun sel boleh keluar sebagai rumus, sekalipun
+  // isinya diawali "=" atau "@" dari berkas sumber. Sel teks tetap teks.
+  Object.keys(ws).forEach((ref) => {
+    if (ref[0] === '!') return;
+    const cell = ws[ref];
+    if (cell && cell.f != null) { delete cell.f; cell.t = 's'; cell.v = String(cell.v ?? ''); }
+  });
+
   ws['!cols'] = TEMPLATE_HEADERS.map((h) => ({ wch: Math.max(10, Math.min(34, h.length + 2)) }));
   ws['!freeze'] = { xSplit: 0, ySplit: 1 };
 

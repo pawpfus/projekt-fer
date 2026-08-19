@@ -6,6 +6,16 @@ import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUP
 
 const KEY = 'projekt-fer:v1';
 
+/* Penyimpanan peramban bisa tidak ada (Node, mode privat ketat, iframe
+   dengan cookie pihak ketiga diblokir). Semua akses lewat pembungkus ini
+   supaya kegagalannya tidak menjatuhkan seluruh modul. */
+const LS = {
+  ada() { try { return typeof localStorage !== 'undefined' && localStorage !== null; } catch (e) { return false; } },
+  get(k) { try { return this.ada() ? localStorage.getItem(k) : null; } catch (e) { return null; } },
+  set(k, v) { try { if (this.ada()) localStorage.setItem(k, v); } catch (e) { /* penuh atau diblokir */ } },
+  del(k) { try { if (this.ada()) localStorage.removeItem(k); } catch (e) { /* diabaikan */ } },
+};
+
 /* ── util ────────────────────────────────────────────────── */
 
 export const uid = () =>
@@ -80,21 +90,36 @@ const subs = new Set();
 export const onChange = (fn) => { subs.add(fn); return () => subs.delete(fn); };
 export function emit() { save(); subs.forEach((f) => f()); }
 
+/** Mode privasi: data tidak ditulis ke localStorage sama sekali. */
+export let janganSimpan = LS.get(KEY + ':off') === '1';
+
+export function setJanganSimpan(on) {
+  janganSimpan = !!on;
+  if (on) { LS.set(KEY + ':off', '1'); LS.del(KEY); }
+  else { LS.del(KEY + ':off'); save(); }
+}
+
+/** Kosongkan seluruh jejak di peramban ini tanpa menyentuh berkas cadangan. */
+export function bersihkanSesi() {
+  state.petani = [];
+  state.poktanId = {};
+  state.pmaas.poktan = {};
+  LS.del(KEY);
+  try { sessionStorage.clear(); } catch (e) { /* penyimpanan terkunci — abaikan */ }
+}
+
 export function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({
-      petani: state.petani, dosis: state.dosis,
-      dosisMeta: state.dosisMeta, settings: state.settings,
-      poktanId: state.poktanId, pmaas: state.pmaas,
-    }));
-  } catch (e) {
-    console.warn('Gagal menyimpan ke localStorage', e);
-  }
+  if (janganSimpan) return;
+  LS.set(KEY, JSON.stringify({
+    petani: state.petani, dosis: state.dosis,
+    dosisMeta: state.dosisMeta, settings: state.settings,
+    poktanId: state.poktanId, pmaas: state.pmaas,
+  }));
 }
 
 export function load() {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = LS.get(KEY);
     if (!raw) return false;
     const d = JSON.parse(raw);
     if (Array.isArray(d.petani)) state.petani = d.petani.map(normalizePetani);
