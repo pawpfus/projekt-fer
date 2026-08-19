@@ -633,6 +633,12 @@ fieldset.mt legend {
      berbagi baris). */
   .card-head { row-gap: 10px; }
   .card-head > .card-title { flex: 1 1 auto; min-width: 0; }
+  /* Judul mengambil baris penuh hanya kalau ada tombol berlabel yang perlu
+     ditata — kalau tidak, judul berbagi baris dengan tombol ikon dan kartu
+     yang sedang terlipat cukup setinggi satu baris.
+     :not([hidden]) penting: tombol yang disembunyikan tetap terbaca oleh
+     :has() dan akan memaksa baris kosong tanpa isi. */
+  .card-head:has(> .btn:not(.btn-icon):not([hidden])) > .card-title { flex: 1 1 100%; }
   .card-head > .topbar-spacer { display: none; }
   .card-head > .card-desc { flex: 1 1 100%; order: 4; }
   .card-head > .btn { flex: 1 1 auto; min-width: max-content; justify-content: center; order: 2; }
@@ -640,7 +646,7 @@ fieldset.mt legend {
   /* harus sesudah aturan .btn di atas — kekhususannya sama, jadi yang
      menang adalah yang terakhir ditulis */
   .card-head > .btn-icon,
-  .card-head > .icon-btn { flex: 0 0 auto; order: 1; }
+  .card-head > .icon-btn { flex: 0 0 auto; order: 2; }
   .card-head > .pill { flex: 1 1 100%; text-align: center; order: 3; }
 
   /* sasaran sentuh — 40px minimum */
