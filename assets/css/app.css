@@ -20,8 +20,8 @@ input[type=number] { -moz-appearance: textfield; }
   --line-2:      #cdd5df;
   --ink:         #0f141a;
   --ink-2:       #3b444f;
-  --ink-3:       #6a7480;
-  --ink-4:       #a6afba;
+  --ink-3:       #5b6470;
+  --ink-4:       #656e7a;
   --accent:      #4c7a00;
   --accent-2:    #3d6200;
   --accent-ink:  #ffffff;
@@ -70,8 +70,8 @@ input[type=number] { -moz-appearance: textfield; }
   --line-2:      #323b47;
   --ink:         #e6ecf3;
   --ink-2:       #aab4c1;
-  --ink-3:       #6b7686;
-  --ink-4:       #454f5c;
+  --ink-3:       #8a95a4;
+  --ink-4:       #7f899a;
   --accent:      #c2f24a;
   --accent-2:    #d2ff62;
   --accent-ink:  #12160a;
@@ -182,6 +182,14 @@ body::before {
 }
 .nav-item.active .nav-badge { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
 .nav-badge.warn { background: var(--danger-bg); color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+
+/* di layar sempit tujuh tab tidak muat dan nav ikut menggulir — rapatkan
+   dulu sebelum menyerah ke gulir mendatar */
+@media (max-width: 1120px) {
+  .nav { padding: 0 14px; }
+  .nav-item { padding: 12px 9px 11px; gap: 5px; }
+  .nav-item i { font-size: 14px; }
+}
 
 /* ── LAYOUT ─────────────────────────────────────────────── */
 .wrap { max-width: 1500px; margin: 0 auto; padding: 22px 20px 60px; position: relative; z-index: 1; }
@@ -533,7 +541,9 @@ fieldset.mt legend {
   font-size: 12.5px; line-height: 1.5; border: 1px solid transparent;
 }
 .alert i { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-.alert b { display: block; margin-bottom: 2px; }
+/* hanya <b> pembuka yang jadi baris judul — kata tebal di tengah kalimat
+   harus tetap sebaris, bukan patah seolah sub-judul */
+.alert b:first-child { display: block; margin-bottom: 2px; }
 .alert-info  { background: var(--sky-bg);   color: var(--sky);   border-color: color-mix(in srgb, var(--sky) 22%, transparent); }
 .alert-warn  { background: var(--amber-bg); color: var(--amber); border-color: color-mix(in srgb, var(--amber) 25%, transparent); }
 .alert-err   { background: var(--coral-bg); color: var(--coral); border-color: color-mix(in srgb, var(--coral) 25%, transparent); }
@@ -605,9 +615,10 @@ fieldset.mt legend {
   .card-head > .card-title { flex: 1 1 100%; }
   .card-head > .topbar-spacer { display: none; }
   .card-head > .card-desc { flex: 1 1 100%; }
-  /* basis 140px: dua tombol per baris, sisanya membungkus — jangan pakai
-     flex-basis 0 karena label jadi terhimpit dan saling menindih */
-  .card-head > .btn { flex: 1 1 140px; justify-content: center; }
+  /* tombol selebar isinya lalu membungkus. Jangan diberi flex-grow: tombol
+     terakhir di satu baris akan melar sendirian selebar layar. Jangan pula
+     flex-basis 0: labelnya terhimpit sampai saling menindih. */
+  .card-head > .btn { flex: 0 1 auto; min-width: max-content; justify-content: center; }
   .card-head > .btn-icon { flex: 0 0 auto; }
   .card-head > .pill { flex: 1 1 100%; text-align: center; }
 
@@ -617,7 +628,7 @@ fieldset.mt legend {
   .btn-icon { width: 40px; height: 40px; padding: 0; }
   .icon-btn { width: 40px; height: 40px; }
   input[type=text], input[type=number], input[type=search], select { min-height: 42px; }
-  td input.cell, td select.cell { min-height: 36px; }
+  td input.cell, td select.cell { min-height: 40px; }
   .check input { width: 20px; height: 20px; }
 
   /* toolbar jadi kisi rapi, bukan bungkus acak. Saringan disembunyikan di
@@ -631,7 +642,12 @@ fieldset.mt legend {
   .card-head.stackhead .toolbar > #btnBersihSaring { grid-column: 1 / -1; }
   /* penghitung baris sudah tampil di pil topbar — tak perlu diulang */
   .card-head.stackhead .toolbar-act .tally { display: none; }
-  .card-head.stackhead .toolbar-act { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  /* baris aksi tetap flex: kisi dua kolom membuat tombol ikon sendirian
+     memenuhi setengah baris */
+  .card-head.stackhead .toolbar-act {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;
+  }
+  .card-head.stackhead .toolbar-act > .btn { flex: 0 1 auto; min-width: max-content; }
 
   /* tabel petani: baris kelompok disembunyikan (tak terbaca di lebar ini),
      kolom bernilai rendah dipangkas, nama petani dibekukan di kiri */
@@ -649,12 +665,19 @@ fieldset.mt legend {
 
   #tbl thead tr:nth-child(2) th:nth-child(2),
   #tbl tbody tr[data-id] td:nth-child(2) {
-    position: sticky; left: 0; z-index: 4;
+    position: sticky; left: 0;
     border-right: 1px solid var(--line-2);
   }
-  #tbl tbody tr[data-id] td:nth-child(2) { background: var(--card); }
+  /* sel judul lengket di dua sumbu sekaligus, jadi harus di atas badan
+     tabel — z-index seri berarti baris (lebih akhir di DOM) yang menang
+     dan judul kolom tertimpa saat digulir */
+  #tbl thead tr:nth-child(2) th:nth-child(2) { z-index: 7; }
+  #tbl tbody tr[data-id] td:nth-child(2) { z-index: 4; background: var(--card); }
   #tbl tbody tr[data-id]:hover td:nth-child(2) { background: var(--soft); }
-  #tbl tbody tr.bad td:nth-child(2) { background: var(--danger-bg); }
+  /* latar wajib legap: --danger-bg semi-transparan, kolom yang lewat di
+     bawahnya akan menembus nama petani saat digulir mendatar */
+  #tbl tbody tr.bad td:nth-child(2) { background: color-mix(in srgb, var(--danger) 9%, var(--card)); }
+  #tbl tbody tr.bad:hover td:nth-child(2) { background: color-mix(in srgb, var(--danger) 16%, var(--card)); }
   .tbl-scroll { max-height: 58vh; }
 
   /* tabel ID Poktan: buang nomor & luas, bekukan nama kelompok supaya
@@ -664,10 +687,11 @@ fieldset.mt legend {
   #tblPoktan th:nth-child(6), #tblPoktan tbody tr[data-poktan] td:nth-child(6) { display: none; }
   #tblPoktan th:nth-child(2),
   #tblPoktan tbody tr[data-poktan] td:nth-child(2) {
-    position: sticky; left: 0; z-index: 4;
+    position: sticky; left: 0;
     border-right: 1px solid var(--line-2); max-width: 130px;
   }
-  #tblPoktan tbody tr[data-poktan] td:nth-child(2) { background: var(--card); }
+  #tblPoktan th:nth-child(2) { z-index: 7; }
+  #tblPoktan tbody tr[data-poktan] td:nth-child(2) { z-index: 4; background: var(--card); }
   #tblPoktan tbody tr[data-poktan]:hover td:nth-child(2) { background: var(--soft); }
 
   /* infografik lebih ringkas supaya tidak jadi gulungan panjang */

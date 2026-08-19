@@ -201,12 +201,18 @@ function renderVizTabel() {
 
 /* ringkasan bisa dilipat — pilihannya diingat antar sesi */
 const VIZ_KEY = 'projekt-fer:viz-lipat';
-function setVizLipat(lipat) {
+/* peramban di komputer bersama bisa mengunci penyimpanan; jangan sampai
+   seluruh skrip berhenti hanya karena preferensi lipat gagal dibaca */
+const vizIngat = {
+  baca() { try { return localStorage.getItem(VIZ_KEY); } catch (e) { return null; } },
+  tulis(v) { try { localStorage.setItem(VIZ_KEY, v); } catch (e) { /* terkunci */ } },
+};
+function setVizLipat(lipat, simpan = true) {
   $('#vizBody').hidden = lipat;
   $('#btnVizTabel').hidden = lipat;
   $('#btnVizLipat').innerHTML = `<i class="ti ti-chevron-${lipat ? 'down' : 'up'}"></i>`;
   $('#btnVizLipat').title = lipat ? 'Tampilkan ringkasan' : 'Sembunyikan ringkasan';
-  localStorage.setItem(VIZ_KEY, lipat ? '1' : '0');
+  if (simpan) vizIngat.tulis(lipat ? '1' : '0');
 }
 $('#btnVizLipat').onclick = () => setVizLipat(!$('#vizBody').hidden);
 
@@ -1544,7 +1550,10 @@ applyTheme(localStorage.getItem(THEME_KEY)
   || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 
 $('#mtFields').innerHTML = mtFieldsHtml();
-setVizLipat(localStorage.getItem(VIZ_KEY) === '1');
+/* di ponsel empat donat memakan lebih dari satu layar penuh sebelum baris
+   data pertama — bawaannya terlipat sampai pengguna memilih sendiri */
+const vizTersimpan = vizIngat.baca();
+setVizLipat(vizTersimpan === null ? window.innerWidth <= 640 : vizTersimpan === '1', false);
 load();
 renderDosis();
 renderPmaas();
