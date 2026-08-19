@@ -268,7 +268,7 @@ function renderTable() {
     tb.innerHTML = `<tr><td colspan="16"><div class="tbl-empty">
       <i class="ti ti-${state.petani.length ? 'filter-off' : 'database-off'}"></i>
       <b>${state.petani.length ? 'Tidak ada baris yang cocok' : 'Belum ada data petani'}</b>
-      ${state.petani.length ? 'Ubah kata kunci atau saringan di atas.' : 'Impor database poktan, atau tambahkan petani satu per satu.'}
+      ${state.petani.length ? 'Ubah kata kunci atau filter di atas.' : 'Impor database poktan, atau tambahkan petani satu per satu.'}
     </div></td></tr>`;
     $('#pillCount').innerHTML = `<b>${fmt(state.petani.length)}</b> petani`;
     $('#badgeData').textContent = fmt(state.petani.length);
@@ -343,13 +343,13 @@ const SARING = ['#fDesa', '#fPoktan', '#fKom', '#fStatus'];
 function renderTombolSaring() {
   const aktif = SARING.filter((s) => $(s).value).length;
   $('#btnSaring').innerHTML =
-    `<i class="ti ti-filter"></i>Saring${aktif ? `<span class="jml">${aktif}</span>` : ''}`;
+    `<i class="ti ti-filter"></i>Filter${aktif ? `<span class="jml">${aktif}</span>` : ''}`;
 }
 $('#btnSaring').onclick = () => {
   const t = $('.card-head.stackhead .toolbar');
   t.classList.toggle('saring-buka');
   $('#btnSaring').title = t.classList.contains('saring-buka')
-    ? 'Sembunyikan pilihan saringan' : 'Tampilkan pilihan saringan';
+    ? 'Sembunyikan pilihan filter' : 'Tampilkan pilihan filter';
 };
 
 $('#btnBersihSaring').onclick = () => {
