@@ -315,6 +315,7 @@ body::before {
 }
 .field label .req { color: var(--danger); }
 .field .hint { font-size: 11px; color: var(--ink-4); }
+.field .hint:empty { display: none; }
 input[type=text], input[type=number], input[type=search], select, textarea {
   font-family: var(--font-ui); font-size: 13px; color: var(--ink);
   background: var(--soft); border: 1px solid var(--line);

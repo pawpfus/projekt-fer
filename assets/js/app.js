@@ -1327,7 +1327,7 @@ function renderEkspor() {
   const berkas = mode ? grupEkspor(list, mode, 'x') : [];
   $('#expPisahHint').textContent = mode
     ? `${berkas.length} berkas akan diunduh berurutan`
-    : 'Seluruh baris dalam satu berkas';
+    : '';
 
   const desa = new Map();
   list.forEach((p) => {
@@ -1354,7 +1354,7 @@ function renderEkspor() {
 
   $('#expWarn').innerHTML = vres.badRows
     ? `<div class="alert alert-err"><i class="ti ti-alert-circle"></i><div><b>${vres.badRows} baris belum sesuai</b>
-        Baris yang tidak sesuai kemungkinan besar ditolak sistem e-RDKK. Buka tab <b>Periksa</b> untuk memperbaikinya, atau centang "Hanya baris yang sesuai".</div></div>`
+        Baris yang tidak sesuai kemungkinan besar ditolak sistem e-RDKK. Buka tab <b>Check</b> untuk memperbaikinya, atau centang "Hanya baris yang sesuai".</div></div>`
     : (state.petani.length
       ? `<div class="alert alert-ok"><i class="ti ti-circle-check"></i><div><b>Semua baris lolos pemeriksaan</b>Berkas siap diunggah.</div></div>`
       : `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div><b>Belum ada data</b>Impor database poktan atau tambahkan petani lebih dulu.</div></div>`);
