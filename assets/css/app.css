@@ -635,10 +635,12 @@ fieldset.mt legend {
   .card-head > .card-title { flex: 1 1 auto; min-width: 0; }
   .card-head > .topbar-spacer { display: none; }
   .card-head > .card-desc { flex: 1 1 100%; order: 4; }
-  .card-head > .btn-icon,
-  .card-head > .icon-btn { flex: 0 0 auto; order: 1; }
   .card-head > .btn { flex: 1 1 auto; min-width: max-content; justify-content: center; order: 2; }
   .card-head > .btn-primary { flex: 1 1 100%; order: 3; }
+  /* harus sesudah aturan .btn di atas — kekhususannya sama, jadi yang
+     menang adalah yang terakhir ditulis */
+  .card-head > .btn-icon,
+  .card-head > .icon-btn { flex: 0 0 auto; order: 1; }
   .card-head > .pill { flex: 1 1 100%; text-align: center; order: 3; }
 
   /* sasaran sentuh — 40px minimum */
@@ -666,9 +668,9 @@ fieldset.mt legend {
   .card-head.stackhead .toolbar-act {
     display: flex; flex-wrap: wrap; gap: 8px;
   }
-  .card-head.stackhead .toolbar-act > .btn { flex: 1 1 auto; min-width: max-content; }
-  .card-head.stackhead .toolbar-act > .btn-icon { flex: 0 0 auto; }
+  .card-head.stackhead .toolbar-act > .btn { flex: 1 1 auto; min-width: max-content; justify-content: center; }
   .card-head.stackhead .toolbar-act > .btn-primary { flex: 1 1 100%; }
+  .card-head.stackhead .toolbar-act > .btn-icon { flex: 0 0 auto; }
 
   /* tabel petani: baris kelompok disembunyikan (tak terbaca di lebar ini),
      kolom bernilai rendah dipangkas, nama petani dibekukan di kiri */
