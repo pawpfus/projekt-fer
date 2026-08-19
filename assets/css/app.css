@@ -709,14 +709,19 @@ fieldset.mt legend {
   #tblPoktan th:nth-child(3), #tblPoktan tbody tr[data-poktan] td:nth-child(3),
   #tblPoktan th:nth-child(4), #tblPoktan tbody tr[data-poktan] td:nth-child(4),
   #tblPoktan th:nth-child(6), #tblPoktan tbody tr[data-poktan] td:nth-child(6) { display: none; }
-  /* kolom ID adalah alasan tab ini ada — beri lebar cukup untuk tujuh
-     angka, jangan sampai terpotong seperti "10480…" */
+  /* empat kolom yang tersisa dipas supaya muat tanpa gulir mendatar:
+     nama kelompok, ID, centang PM-AAS, dan tombol unduh per kelompok.
+     Kolom ID adalah alasan tab ini ada — jangan sampai terpotong
+     jadi "10480…", tapi juga jangan sampai tombol unduh terpotong. */
+  #tblPoktan th, #tblPoktan tbody tr[data-poktan] td { padding: 9px 7px; }
   #tblPoktan th:nth-child(5) { width: auto; }
-  #tblPoktan tbody tr[data-poktan] td:nth-child(5) input { width: 100%; min-width: 104px; }
+  #tblPoktan tbody tr[data-poktan] td:nth-child(5) input { width: 100%; min-width: 92px; }
+  #tblPoktan th:nth-child(7) { width: 56px; }
+  #tblPoktan th:nth-child(8) { width: 44px; }
   #tblPoktan th:nth-child(2),
   #tblPoktan tbody tr[data-poktan] td:nth-child(2) {
     position: sticky; left: 0;
-    border-right: 1px solid var(--line-2); max-width: 130px;
+    border-right: 1px solid var(--line-2); max-width: 112px;
   }
   #tblPoktan th:nth-child(2) { z-index: 7; }
   #tblPoktan tbody tr[data-poktan] td:nth-child(2) { z-index: 4; background: var(--card); }
