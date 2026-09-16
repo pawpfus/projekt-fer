@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Projekt-Fer</title>
 <meta name="description" content="Isi template ERDKK secara otomatis dari database poktan. Dosis pupuk dihitung dari luas lahan, hasil siap unggah ke erdkk25.pertanian.go.id." />
-<meta name="theme-color" content="#014421" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23014421'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' font-weight='700' fill='%23fff' text-anchor='middle'%3EP%3C/text%3E%3C/svg%3E" />
+<meta name="theme-color" content="#4c7a00" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0e1116" media="(prefers-color-scheme: dark)" />
+<!-- Favicon memakai gambar yang sama dengan lambang di topbar. Warnanya
+     dipatok (bukan variabel) karena favicon tak mewarisi tema halaman;
+     hijau dengan tunas putih terbaca di bilah tab terang maupun gelap. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%234c7a00'/%3E%3Cg fill='%23fff'%3E%3Cpath d='M16 18v-7.4' stroke='%23fff' stroke-width='2.3' stroke-linecap='round'/%3E%3Cpath d='M16.8 11.9c-.5-3.7 1.6-6.3 5.4-6.9.95 3.7-1.5 6.8-5.4 6.9z'/%3E%3Cpath d='M15.2 15.6c.4-3-1.3-5.2-4.2-5.6-.75 3 1.2 5.4 4.2 5.6z'/%3E%3Crect x='7' y='19.6' width='18' height='2.6' rx='1.3'/%3E%3Crect x='7' y='24.2' width='11.5' height='2.6' rx='1.3'/%3E%3C/g%3E%3C/svg%3E" />
 <link rel="stylesheet" href="assets/css/fonts.css" />
 <link rel="stylesheet" href="assets/css/icons.css" />
 <link rel="stylesheet" href="assets/css/app.css" />
@@ -15,7 +19,19 @@
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand-mark">PF</div>
+    <!-- Tunas di atas dua baris data: yang dikerjakan aplikasi ini persis itu
+         — menumbuhkan baris RDKK dari data poktan. Warnanya ikut tema lewat
+         variabel, jadi satu berkas untuk terang dan gelap. -->
+    <svg class="brand-mark" viewBox="0 0 32 32" role="img" aria-label="Projekt-Fer">
+      <rect width="32" height="32" rx="9" fill="var(--accent)" />
+      <g fill="var(--accent-ink)">
+        <path d="M16 18v-7.4" stroke="var(--accent-ink)" stroke-width="2.3" stroke-linecap="round" />
+        <path d="M16.8 11.9c-.5-3.7 1.6-6.3 5.4-6.9.95 3.7-1.5 6.8-5.4 6.9z" />
+        <path d="M15.2 15.6c.4-3-1.3-5.2-4.2-5.6-.75 3 1.2 5.4 4.2 5.6z" />
+        <rect x="7" y="19.6" width="18" height="2.6" rx="1.3" />
+        <rect x="7" y="24.2" width="11.5" height="2.6" rx="1.3" />
+      </g>
+    </svg>
     <div class="brand-text">
       <span class="brand-name">Projekt-Fer</span>
     </div>

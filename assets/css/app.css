@@ -119,12 +119,13 @@ body::before {
   position: sticky; top: 0; z-index: 400;
 }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* Lambang digambar sebagai SVG, bukan huruf di dalam kotak: bentuknya
+   tetap tajam di layar mana pun dan sama persis dengan favicon.
+   Sudut lengkungnya ada di dalam SVG (rx=9 pada kanvas 32), jadi jangan
+   ditambah border-radius lagi di sini — nanti dua lengkung bertumpuk. */
 .brand-mark {
-  width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
-  background: var(--accent); color: var(--accent-ink);
-  display: grid; place-items: center;
-  font-family: var(--font-disp); font-weight: 700; font-size: 13px;
-  letter-spacing: -.3px;
+  width: 34px; height: 34px; flex-shrink: 0; display: block;
+  border-radius: 9.5px;
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
