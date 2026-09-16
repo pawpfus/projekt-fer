@@ -203,7 +203,7 @@ export function bacaDaftarPoktan(matrix) {
 
       const nama = txt(row[iNama]), id = txt(row[iId]);
       if (!nama || !id) continue;
-      const kunci = upper(nama) + ' ' + id;
+      const kunci = upper(nama) + '\u0000' + id;
       if (dipakai.has(kunci)) continue;
       dipakai.add(kunci);
       hasil.push({ nama, id });
