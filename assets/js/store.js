@@ -2,7 +2,7 @@
    store.js — state, penyimpanan lokal, hitung pupuk, validasi
    ============================================================ */
 
-import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js';
+import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js?v=20260922';
 
 const KEY = 'projekt-fer:v1';
 

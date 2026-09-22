@@ -4,10 +4,10 @@
 
 import {
   TEMPLATE_HEADERS, PUPUK, FIELDS, DOSIS_ALIAS, normHeader,
-} from './schema.js';
+} from './schema.js?v=20260922';
 import {
   state, uid, cleanKtp, num, numLuas, txt, upper, recalcPetani, emptyMt,
-} from './store.js';
+} from './store.js?v=20260922';
 
 /* ── BACA ────────────────────────────────────────────────── */
 

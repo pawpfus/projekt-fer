@@ -4,7 +4,7 @@
 
 import {
   PUPUK, SUBSEKTOR, FIELDS, DOSIS_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT,
-} from './schema.js';
+} from './schema.js?v=20260922';
 import {
   state, load, emit, onChange, uid, cleanKtp, num, numLuas, txt, upper, fmt,
   emptyPetani, normalizePetani, dosisFor, komoditasList,
@@ -14,12 +14,12 @@ import {
   sebaranBarisMt, sebaranPupuk, isPmaas, dosisBerlaku, pmaasRingkas, setPmaas,
   janganSimpan, setJanganSimpan, bersihkanSesi,
   simpanMentah, hapusMentah, mentahRingkas, mentahUntukPoktan, poktanMentah,
-} from './store.js';
+} from './store.js?v=20260922';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
   parseDosisSheet, buildTemplateWorkbook, downloadWorkbook,
   buildBackupWorkbook, backupToPetani, bacaDaftarPoktan, buildMentahWorkbook,
-} from './xlsxio.js';
+} from './xlsxio.js?v=20260922';
 
 /* ── helper DOM ──────────────────────────────────────────── */
 const $  = (s, r = document) => r.querySelector(s);
