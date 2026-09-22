@@ -891,6 +891,25 @@ $('#impBatal').onclick = () => { $('#impPanel').hidden = true; imp = null; };
 $('#impJalan').onclick = () => {
   if (!imp?.rows?.length) return;
   const mode = $('input[name="impMode"]:checked').value;
+
+  // Hanya mengambil salinan mentahnya. Berguna untuk data yang sudah telanjur
+  // diimpor sebelum fitur unduh mentah ada: tidak satu pun baris petani
+  // disentuh, jadi suntingan manual aman.
+  if (mode === 'mentah') {
+    const bagian = bagianMentah();
+    if (bagian.iPoktan == null) {
+      return toast('Kolom Nama Poktan tidak terpetakan — data mentah tak bisa dipisah per kelompok', 'err');
+    }
+    simpanMentah(bagian, true);
+    const tersimpan = emit();
+    $('#impPanel').hidden = true; imp = null;
+    toast(`${fmt(bagian.baris.length)} baris mentah disimpan — data petani tidak diubah`);
+    if (tersimpan === false) {
+      toast('Penyimpanan peramban penuh — data hanya bertahan selama tab terbuka. Unduh cadangan.', 'err');
+    }
+    return go('poktan');
+  }
+
   let rows = imp.rows.map((p) => ({ ...p, id: uid() }));
 
   if (mode === 'replace') state.petani = [];
@@ -1056,12 +1075,17 @@ function renderMentahInfo() {
       <b>Belum ada data mentah untuk diunduh</b>
       Data yang sudah ada di sini diimpor sebelum fitur ini dibuat, jadi baris
       aslinya tidak ikut tersimpan dan tidak bisa dimunculkan kembali.
-      Impor ulang berkas database yang sama — data petani tidak akan berubah
-      selama Anda memilih <b>Ganti</b> — lalu tombol unduh mentah muncul di
-      tiap kelompok.</div>
-      <button class="btn btn-sm" id="btnKeImpor" style="margin-left:auto;align-self:start">
-        <i class="ti ti-file-upload"></i>Impor</button></div>`;
-    $('#btnKeImpor').onclick = () => go('impor');
+      Buka berkas database yang sama lalu pilih <b>Simpan data mentahnya saja</b> —
+      data petani Anda tidak disentuh sama sekali.</div>
+      <button class="btn btn-sm btn-primary" id="btnKeImpor" style="margin-left:auto;align-self:start">
+        <i class="ti ti-file-upload"></i>Buka berkas</button></div>`;
+    $('#btnKeImpor').onclick = () => {
+      go('impor');
+      // pilihkan modenya supaya tidak ada yang salah tekan "Ganti"
+      const m = $('input[name="impMode"][value="mentah"]');
+      if (m) m.checked = true;
+      $('#fileImp').click();
+    };
     return;
   }
   // Saat semuanya beres cukup satu baris — tab ini sudah penuh spanduk.
