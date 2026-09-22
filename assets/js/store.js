@@ -127,6 +127,11 @@ export function save() {
   }));
 }
 
+/** Nama berkas bawaan dari versi sebelumnya — dikenali supaya bisa dinaikkan
+ *  ke bawaan terbaru. Nama di luar daftar ini dianggap pilihan pengguna dan
+ *  tidak pernah diutak-atik. */
+const NAMA_FILE_LAWAS = ['template-erdkk-2025', 'template-erdkk-2026'];
+
 export function load() {
   try {
     const raw = LS.get(KEY);
@@ -135,7 +140,15 @@ export function load() {
     if (Array.isArray(d.petani)) state.petani = d.petani.map(normalizePetani);
     if (Array.isArray(d.dosis) && d.dosis.length) state.dosis = d.dosis;
     if (d.dosisMeta) state.dosisMeta = { ...DOSIS_META_DEFAULT, ...d.dosisMeta };
-    if (d.settings) state.settings = { ...SETTINGS_DEFAULT, ...d.settings };
+    if (d.settings) {
+      const s = { ...SETTINGS_DEFAULT, ...d.settings };
+      // Nama berkas bawaan ikut tahun dosis. Yang tersimpan selalu menang,
+      // jadi nilai bawaan tahun lalu akan menempel selamanya kalau tidak
+      // dinaikkan di sini — tapi hanya bila pengguna memang belum pernah
+      // mengubahnya sendiri.
+      if (NAMA_FILE_LAWAS.includes(s.namaFile)) s.namaFile = SETTINGS_DEFAULT.namaFile;
+      state.settings = s;
+    }
     if (d.poktanId && typeof d.poktanId === 'object') state.poktanId = d.poktanId;
     if (d.pmaas && typeof d.pmaas === 'object') {
       state.pmaas = {

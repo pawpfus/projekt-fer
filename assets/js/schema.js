@@ -84,7 +84,7 @@ export const SETTINGS_DEFAULT = {
   batasLuas: 2,            // Ha per musim tanam — di atas ini diberi peringatan
   tulisNol: false,         // false = sel pupuk 0 dikosongkan (seperti contoh resmi)
   salinMt2: true,          // saat input manual, MT2 mengikuti MT1
-  namaFile: 'template-erdkk-2026',
+  namaFile: 'template-erdkk-2027',
 };
 
 /* ── Alias kolom untuk pemetaan otomatis saat impor ──────── */
