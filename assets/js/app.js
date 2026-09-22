@@ -19,6 +19,7 @@ import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
   parseDosisSheet, buildTemplateWorkbook, downloadWorkbook,
   buildBackupWorkbook, backupToPetani, bacaDaftarPoktan, buildMentahWorkbook,
+  bacaSimluhtan,
 } from './xlsxio.js?v=20260922';
 
 /* ── helper DOM ──────────────────────────────────────────── */
@@ -769,7 +770,28 @@ dz.ondrop = (e) => {
   e.preventDefault(); dz.classList.remove('over');
   if (e.dataTransfer.files[0]) muatImpor(e.dataTransfer.files[0]);
 };
-$('#fileImp').onchange = (e) => { if (e.target.files[0]) muatImpor(e.target.files[0]); e.target.value = ''; };
+$('#fileImp').onchange = (e) => { muatBanyak([...e.target.files]); e.target.value = ''; };
+
+/** Unduhan SIMLUHTAN datang satu berkas per kelompok — 26 kelompok berarti
+ *  26 berkas. Terima sekaligus; berkas database biasa tetap satu per satu. */
+async function muatBanyak(files) {
+  if (!files.length) return;
+  if (files.length === 1) return muatImpor(files[0]);
+
+  const kumpulan = [];
+  for (const f of files) {
+    try {
+      const wb = readWorkbook(await readFile(f));
+      const sim = cariSimluhtan(wb);
+      if (sim) kumpulan.push({ ...sim, berkas: f.name });
+      else toast(`${f.name} bukan berkas SIMLUHTAN — buka satu per satu`, 'warn');
+    } catch (err) {
+      toast(`Gagal membaca ${f.name}: ${err.message}`, 'err');
+    }
+  }
+  if (!kumpulan.length) return;
+  bukaSimPanel(kumpulan);
+}
 
 /** Berkas raksasa membekukan tab saat dirender — tolak lebih awal. */
 const BATAS_UKURAN_MB = 25;
@@ -782,6 +804,14 @@ async function muatImpor(file) {
       return toast(`Berkas ${mb.toFixed(1)} MB melebihi batas ${BATAS_UKURAN_MB} MB`, 'err');
     }
     const wb = readWorkbook(await readFile(file));
+
+    // Unduhan SIMLUHTAN punya bentuk tetap — tidak perlu pemetaan kolom.
+    const sim = cariSimluhtan(wb);
+    if (sim) {
+      $('#impPanel').hidden = true; imp = null;
+      return bukaSimPanel([{ ...sim, berkas: file.name }]);
+    }
+
     imp = { wb, sheets: wb.SheetNames, sheet: wb.SheetNames[0], nama: file.name };
     $('#impSheet').innerHTML = imp.sheets.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
     pilihSheet(imp.sheet);
@@ -933,6 +963,181 @@ $('#impJalan').onclick = () => {
   const tersimpan = emit();
   $('#impPanel').hidden = true; imp = null;
   toast(`${fmt(rows.length)} petani diimpor${lewat ? ` · ${lewat} NIK ganda dilewati` : ''}`);
+  if (tersimpan === false) {
+    toast('Penyimpanan peramban penuh — data hanya bertahan selama tab terbuka. Unduh cadangan.', 'err');
+  }
+  go('data');
+};
+
+/* ── SIMLUHTAN ───────────────────────────────────────────── */
+/* Satu berkas = satu kelompok, formatnya tetap. Yang berharga di sini bukan
+   cuma daftar anggotanya, tapi ID Kelompok Tani di blok atas — nomor yang
+   justru paling sulit didapat dari database biasa. */
+
+let sim = null; // [{ namaPoktan, idPoktan, anggota, berkas, matrix }]
+
+/** Cari sheet berbentuk SIMLUHTAN di dalam workbook. */
+function cariSimluhtan(wb) {
+  for (const nama of wb.SheetNames) {
+    const matrix = sheetToMatrix(wb, nama);
+    const hasil = bacaSimluhtan(matrix);
+    if (hasil) return { ...hasil, sheet: nama, matrix };
+  }
+  return null;
+}
+
+function bukaSimPanel(daftar) {
+  sim = daftar;
+  renderSimPreview();
+  $('#simPanel').hidden = false;
+  go('impor');
+  $('#simPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const total = daftar.reduce((s, d) => s + d.anggota.length, 0);
+  toast(`${daftar.length} berkas SIMLUHTAN dibaca — ${fmt(total)} anggota`);
+}
+
+/** Susun record petani dari satu berkas SIMLUHTAN. */
+function simKeRecord(d, opt) {
+  const bawaan = opt.isiKosong ? state.settings : {};
+  // NIK → nama ibu kandung dari data yang sudah ada; SIMLUHTAN tidak memuatnya
+  const ibuLama = new Map();
+  if (opt.ambilIbu) {
+    state.petani.forEach((p) => {
+      const k = cleanKtp(p.ktp);
+      if (k && txt(p.namaIbu)) ibuLama.set(k, p.namaIbu);
+    });
+  }
+  return d.anggota.map((a) => {
+    const kom = upper(a.komoditas);
+    const dos = dosisFor(kom);
+    const p = normalizePetani({
+      id: uid(),
+      namaPetani: a.nama,
+      ktp: a.nik,
+      namaIbu: ibuLama.get(a.nik) || '',
+      namaPenyuluh: txt(bawaan.namaPenyuluh),
+      kodeDesa: txt(bawaan.kodeDesa), namaDesa: upper(bawaan.namaDesa),
+      idPoktan: txt(d.idPoktan), namaPoktan: upper(d.namaPoktan),
+      kodeKios: txt(bawaan.kodeKios), namaKios: upper(bawaan.namaKios),
+      // subsektor diturunkan dari komoditasnya lewat tabel kuota pupuk
+      subsektor: dos ? upper(dos.subsektor) : '',
+      mt: [{ komoditas: kom, luas: a.luas }, {}, {}],
+    });
+    recalcPetani(p);
+    return p;
+  });
+}
+
+function simOpsi() {
+  return {
+    ambilIbu: $('#simIbu').checked,
+    isiKosong: $('#simIsiKosong').checked,
+  };
+}
+
+function renderSimPreview() {
+  if (!sim) return;
+  const opt = simOpsi();
+  const semua = sim.flatMap((d) => simKeRecord(d, opt));
+  const tanpaIbu = semua.filter((p) => !txt(p.namaIbu)).length;
+  const tanpaDosis = [...new Set(semua.map((p) => upper(p.mt[0].komoditas))
+    .filter((k) => k && !dosisFor(k)))];
+
+  // Setelan hanya dipakai saat baris dibuat — mengisinya belakangan tidak
+  // mengisi mundur baris yang sudah masuk. Peringatkan sebelum, bukan sesudah.
+  const wajibSetelan = [
+    ['namaPenyuluh', 'Nama Penyuluh'], ['kodeDesa', 'Kode Desa'], ['kodeKios', 'Kode Kios'],
+  ].filter(([k]) => !txt(state.settings[k])).map(([, label]) => label);
+
+  $('#simRingkas').innerHTML = `
+    ${sim.map((d) => `<div class="kv"><span>${esc(d.namaPoktan)}</span>
+      <b>${fmt(d.anggota.length)} anggota · ID ${esc(d.idPoktan) || '<span class="muted">tidak ada</span>'}</b></div>`).join('')}
+    ${opt.isiKosong && wajibSetelan.length ? `<div class="alert alert-warn" style="margin-top:10px">
+      <i class="ti ti-alert-triangle"></i><div>
+      <b>Setelan belum lengkap: ${esc(wajibSetelan.join(', '))}</b>
+      SIMLUHTAN tidak memuat kolom ini. Isi di tab Setelan <b>sebelum</b> mengimpor —
+      mengisinya belakangan tidak akan mengisi baris yang sudah masuk.</div>
+      <button class="btn btn-sm" id="simKeSetelan" style="margin-left:auto;align-self:start">
+        <i class="ti ti-settings"></i>Setelan</button></div>` : ''}
+    <div class="divider"></div>
+    <div class="kv"><span>Total baris</span><b>${fmt(semua.length)}</b></div>
+    <div class="kv"><span>Total luas</span><b>${fmt(semua.reduce((s, p) => s + numLuas(p.mt[0].luas), 0), 2)} Ha</b></div>
+    ${tanpaIbu ? `<div class="alert alert-warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i><div>
+      <b>${fmt(tanpaIbu)} baris belum punya Nama Ibu Kandung</b>
+      SIMLUHTAN tidak memuat kolom itu, padahal template ERDKK mewajibkannya.
+      Yang cocok NIK-nya dengan data lama sudah terisi otomatis; sisanya perlu
+      dilengkapi manual — tab <b>Check</b> akan menandainya.</div></div>` : ''}
+    ${tanpaDosis.length ? `<div class="alert alert-warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i><div>
+      <b>Komoditas tanpa dosis: ${esc(tanpaDosis.join(', '))}</b>
+      Pupuknya jadi 0. Tambahkan di tab Kuota Pupuk lalu tekan Hitung Ulang.</div></div>` : ''}`;
+
+  $('#simPrev').innerHTML = `
+    <thead><tr><th>Nama</th><th>NIK</th><th>Ibu</th><th>Poktan</th><th>ID</th>
+      <th>Komoditas</th><th class="num">Luas</th><th class="num">Urea</th>
+      <th class="num">NPK</th><th class="num">Organik</th></tr></thead>
+    <tbody>${semua.slice(0, 8).map((p) => `<tr>
+      <td>${esc(p.namaPetani || '—')}</td>
+      <td class="mono nowrap">${esc(p.ktp || '—')}</td>
+      <td>${p.namaIbu ? esc(p.namaIbu) : '<span class="tag tag-coral">kosong</span>'}</td>
+      <td>${esc(p.namaPoktan)}</td>
+      <td class="mono">${esc(p.idPoktan) || '—'}</td>
+      <td>${esc(p.mt[0].komoditas || '—')}</td>
+      <td class="num">${fmt(numLuas(p.mt[0].luas), 2)}</td>
+      <td class="num">${fmt(p.mt[0].urea)}</td>
+      <td class="num">${fmt(p.mt[0].npk)}</td>
+      <td class="num">${fmt(p.mt[0].organik)}</td></tr>`).join('')}</tbody>`;
+
+  const keSetelan = $('#simKeSetelan');
+  if (keSetelan) keSetelan.onclick = () => go('setelan');
+}
+
+['#simIbu', '#simIsiKosong'].forEach((s) => ($(s).onchange = renderSimPreview));
+$('#simBatal').onclick = () => { $('#simPanel').hidden = true; sim = null; };
+
+$('#simJalan').onclick = () => {
+  if (!sim?.length) return;
+  const mode = $('input[name="simMode"]:checked').value;
+  const opt = simOpsi();
+  let masuk = 0, lewat = 0;
+
+  sim.forEach((d) => {
+    const rows = simKeRecord(d, opt);
+    const nama = upper(d.namaPoktan);
+
+    if (mode === 'ganti') {
+      // hanya kelompok ini yang diganti — kelompok lain tidak disentuh
+      state.petani = state.petani.filter((p) => upper(p.namaPoktan) !== nama);
+    }
+    const ada = new Set(state.petani.map((p) => cleanKtp(p.ktp)).filter(Boolean));
+    rows.forEach((p) => {
+      const k = cleanKtp(p.ktp);
+      if (k && ada.has(k)) { lewat++; return; }
+      if (k) ada.add(k);
+      state.petani.push(p);
+      masuk++;
+    });
+
+    // ID kelompok dari SIMLUHTAN adalah sumber paling tepercaya
+    if (d.idPoktan) state.poktanId[nama] = txt(d.idPoktan);
+
+    // simpan juga salinan mentahnya supaya bisa diunduh ulang per kelompok
+    const judul = (d.matrix[d.barisJudul] || []).map((h) => txt(h));
+    const baris = d.matrix.slice(d.barisJudul + 1)
+      .filter((r) => r && r.some((c) => txt(c) !== ''));
+    const iPoktan = judul.length;               // kolom buatan: nama kelompok
+    simpanMentah({
+      nama: txt(d.namaPoktan).slice(0, 28) || 'SIMLUHTAN',
+      berkas: txt(d.berkas),
+      waktu: new Date().toISOString().slice(0, 10),
+      judul: [...judul, 'Nama Poktan'],
+      baris: baris.map((r) => [...r, d.namaPoktan]),
+      iPoktan,
+    }, false);
+  });
+
+  const tersimpan = emit();
+  $('#simPanel').hidden = true; sim = null;
+  toast(`${fmt(masuk)} anggota diimpor${lewat ? ` · ${lewat} NIK ganda dilewati` : ''}`);
   if (tersimpan === false) {
     toast('Penyimpanan peramban penuh — data hanya bertahan selama tab terbuka. Unduh cadangan.', 'err');
   }

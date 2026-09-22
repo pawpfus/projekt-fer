@@ -177,6 +177,90 @@ export function parseDosisSheet(matrix) {
   return { rows, meta };
 }
 
+/* ── BACA UNDUHAN SIMLUHTAN ──────────────────────────────── */
+/* Berkas "Daftar Anggota Kelompok Tani" dari SIMLUHTAN berbentuk tetap:
+   blok identitas kelompok di baris atas (nama & ID kelompok — justru yang
+   paling sulit didapat dari database biasa), lalu tabel anggota.
+   Satu berkas = satu kelompok.
+
+   Yang TIDAK ada di sini: Nama Ibu Kandung, kode desa, dan kode kios —
+   padahal ketiganya wajib di template ERDKK. Pemanggil harus melengkapinya
+   dari data yang sudah ada atau dari Setelan. */
+
+/** @returns {null|{namaPoktan, idPoktan, prov, kab, kec, anggota: object[]}} */
+export function bacaSimluhtan(matrix) {
+  if (!matrix || matrix.length < 3) return null;
+
+  // 1) blok identitas: cari label di kolom mana pun, nilainya sel terisi berikutnya
+  const labelDi = (label) => {
+    const target = normHeader(label);
+    for (let r = 0; r < Math.min(12, matrix.length); r++) {
+      const row = matrix[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        if (normHeader(row[c]) !== target) continue;
+        for (let k = c + 1; k < row.length; k++) {
+          if (txt(row[k]) !== '') return txt(row[k]);
+        }
+      }
+    }
+    return '';
+  };
+
+  const namaPoktan = labelDi('nama kelompok tani');
+  if (!namaPoktan) return null;
+
+  // 2) baris judul tabel: harus punya kolom NIK dan Nama sekaligus
+  let hr = -1, kol = null;
+  for (let r = 0; r < Math.min(20, matrix.length); r++) {
+    const head = (matrix[r] || []).map(normHeader);
+    const iNik = head.findIndex((h) => h === 'nik');
+    const iNama = head.findIndex((h) => h === 'nama');
+    if (iNik < 0 || iNama < 0) continue;
+    const iKom = head.findIndex((h) => h.includes('komoditas') && h.includes('diusahakan'));
+    kol = {
+      nama: iNama, nik: iNik,
+      lahir: head.findIndex((h) => h.includes('tgl lahir') || h.includes('tempat')),
+      alamat: head.findIndex((h) => h === 'alamat'),
+      komoditas: iKom,
+      // kolom volume selalu tepat sesudah komoditas pada format ini
+      luas: iKom >= 0 && head[iKom + 1] && head[iKom + 1].includes('volume') ? iKom + 1 : -1,
+      totalLuas: head.findIndex((h) => h.includes('total') && h.includes('diuasahakan')),
+    };
+    hr = r;
+    break;
+  }
+  if (hr < 0) return null;
+
+  const ambil = (row, i) => (i >= 0 ? row[i] : '');
+  const anggota = [];
+  for (const row of matrix.slice(hr + 1)) {
+    if (!row || row.every((c) => txt(c) === '')) continue;
+    const nik = cleanKtp(ambil(row, kol.nik));
+    const nama = txt(ambil(row, kol.nama));
+    if (!nik && !nama) continue;
+    // luas per komoditas; bila kosong pakai total luas yang diusahakan
+    const luas = numLuas(ambil(row, kol.luas)) || numLuas(ambil(row, kol.totalLuas));
+    anggota.push({
+      nama, nik,
+      komoditas: upper(ambil(row, kol.komoditas)),
+      luas,
+      alamat: txt(ambil(row, kol.alamat)),
+      lahir: txt(ambil(row, kol.lahir)),
+    });
+  }
+  if (!anggota.length) return null;
+
+  return {
+    namaPoktan: upper(namaPoktan),
+    idPoktan: txt(labelDi('id kelompok tani')),
+    prov: upper(labelDi('provinsi')),
+    kab: upper(labelDi('kabupaten')),
+    kec: upper(labelDi('kecamatan')),
+    barisJudul: hr,
+    anggota,
+  };
+}
+
 /* ── BACA DAFTAR ID POKTAN ───────────────────────────────── */
 
 const RE_NAMA_POKTAN = /^(nama\s*)?(poktan|kelompok\s*tani|kelompok|nama\s*kelompok)$/;
