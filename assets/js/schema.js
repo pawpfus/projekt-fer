@@ -46,7 +46,7 @@ export const PUPUK = [
 
 export const SUBSEKTOR = ['TANAMAN PANGAN', 'HORTIKULTURA', 'PERKEBUNAN'];
 
-/** Dosis bawaan 2026 — Kec. Pitu Riawa, Kab. Sidenreng Rappang (kg/Ha). */
+/** Dosis bawaan 2027 — Kec. Pitu Riawa, Kab. Sidenreng Rappang (kg/Ha). */
 export const DOSIS_DEFAULT = [
   { komoditas: 'PADI',         subsektor: 'TANAMAN PANGAN', urea: 250, npk: 300,  npkFormula: 0,   organik: 500, za: 0,   sp36: 0, poc: 0 },
   { komoditas: 'JAGUNG',       subsektor: 'TANAMAN PANGAN', urea: 250, npk: 350,  npkFormula: 0,   organik: 500, za: 0,   sp36: 0, poc: 0 },
@@ -57,7 +57,7 @@ export const DOSIS_DEFAULT = [
   { komoditas: 'CABAI',        subsektor: 'HORTIKULTURA',   urea: 0,   npk: 400,  npkFormula: 0,   organik: 500, za: 0,   sp36: 0, poc: 0 },
   { komoditas: 'KAKAO',        subsektor: 'PERKEBUNAN',     urea: 20,  npk: 0,    npkFormula: 615, organik: 500, za: 0,   sp36: 0, poc: 0 },
   { komoditas: 'KOPI',         subsektor: 'PERKEBUNAN',     urea: 0,   npk: 860,  npkFormula: 0,   organik: 500, za: 0,   sp36: 0, poc: 0 },
-  { komoditas: 'TEBU RAKYAT',  subsektor: 'PERKEBUNAN',     urea: 0,   npk: 1200, npkFormula: 0,   organik: 500, za: 108, sp36: 0, poc: 0 },
+  { komoditas: 'TEBU RAKYAT',  subsektor: 'PERKEBUNAN',     urea: 0,   npk: 1200, npkFormula: 0,   organik: 500, za: 110, sp36: 0, poc: 0 },
 ];
 
 /** Kuota pupuk program PM-AAS (Pertanian Modern Advanced Agriculture System)
@@ -67,7 +67,7 @@ export const PMAAS_DEFAULT = {
 };
 
 export const DOSIS_META_DEFAULT = {
-  year: 2026,
+  year: 2027,
   kodeProv: '73', namaProv: 'SULAWESI SELATAN',
   kodeKab: '7314', namaKab: 'KAB. SIDENRENG RAPPANG',
   kodeKec: '731410', namaKec: 'PITU RIAWA',
