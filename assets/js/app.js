@@ -1060,8 +1060,17 @@ function renderSimPreview() {
       <button class="btn btn-sm" id="simKeSetelan" style="margin-left:auto;align-self:start">
         <i class="ti ti-settings"></i>Setelan</button></div>` : ''}
     <div class="divider"></div>
-    <div class="kv"><span>Total baris</span><b>${fmt(semua.length)}</b></div>
+    <div class="kv"><span>Total baris di berkas</span><b>${fmt(semua.length)}</b></div>
     <div class="kv"><span>Total luas</span><b>${fmt(semua.reduce((s, p) => s + numLuas(p.mt[0].luas), 0), 2)} Ha</b></div>
+    ${(() => {
+      const d = simDampak(opt);
+      if ($('input[name="simMode"]:checked')?.value !== 'gabung') return '';
+      return `<div class="divider"></div>
+        <div class="kv"><span>Sudah ada di data (NIK cocok)</span><b>${fmt(d.cocok)} baris dilengkapi</b></div>
+        <div class="kv"><span>Belum ada di data</span><b>${fmt(d.baru)} baris ditambahkan</b></div>
+        <div class="kv"><span>Anggota lama di luar berkas ini</span><b>${fmt(d.diLuarBerkas)} baris dibiarkan</b></div>
+        ${d.tanpaNik ? `<div class="kv"><span>Tanpa NIK</span><b>${fmt(d.tanpaNik)} baris ditambahkan sebagai baru</b></div>` : ''}`;
+    })()}
     ${tanpaIbu ? `<div class="alert alert-warn" style="margin-top:10px"><i class="ti ti-alert-triangle"></i><div>
       <b>${fmt(tanpaIbu)} baris belum punya Nama Ibu Kandung</b>
       SIMLUHTAN tidak memuat kolom itu, padahal template ERDKK mewajibkannya.
@@ -1092,13 +1101,60 @@ function renderSimPreview() {
 }
 
 ['#simIbu', '#simIsiKosong'].forEach((s) => ($(s).onchange = renderSimPreview));
+$$('input[name="simMode"]').forEach((r) => (r.onchange = renderSimPreview));
 $('#simBatal').onclick = () => { $('#simPanel').hidden = true; sim = null; };
+
+/** Gabungkan satu record SIMLUHTAN ke baris yang sudah ada.
+ *  Aturannya satu: hanya kolom KOSONG yang diisi. Nilai yang sudah ada —
+ *  termasuk hasil suntingan manual — tidak pernah ditimpa, sebab data lama
+ *  ERDKK memuat hal yang tidak dipunyai SIMLUHTAN (ibu kandung, MT2/MT3).
+ *  @returns {number} berapa kolom yang terisi */
+function gabungKeBaris(lama, baru) {
+  let isi = 0;
+  const isiKalauKosong = (k) => {
+    if (txt(lama[k]) || !txt(baru[k])) return;
+    lama[k] = baru[k]; isi++;
+  };
+  ['namaPetani', 'namaIbu', 'namaPenyuluh', 'kodeDesa', 'namaDesa',
+    'idPoktan', 'namaPoktan', 'kodeKios', 'namaKios', 'subsektor'].forEach(isiKalauKosong);
+
+  // MT1 hanya diisi bila memang masih kosong — luas yang sudah disesuaikan
+  // sendiri tidak boleh diganti angka SIMLUHTAN
+  const m = lama.mt[0], b = baru.mt[0];
+  if (!txt(m.komoditas) && txt(b.komoditas)) {
+    m.komoditas = b.komoditas;
+    m.luas = b.luas;
+    isi++;
+    if (!m.manual) recalcMt(m, { petani: lama });
+  }
+  return isi;
+}
+
+/** Hitung dampak penggabungan tanpa mengubah apa pun — untuk pratinjau. */
+function simDampak(opt) {
+  const perNik = new Map();
+  state.petani.forEach((p) => { const k = cleanKtp(p.ktp); if (k) perNik.set(k, p); });
+  let cocok = 0, baru = 0, tanpaNik = 0;
+  const nikBerkas = new Set();
+  sim.forEach((d) => {
+    simKeRecord(d, opt).forEach((p) => {
+      const k = cleanKtp(p.ktp);
+      if (!k) { tanpaNik++; return; }
+      nikBerkas.add(k);
+      if (perNik.has(k)) cocok++; else baru++;
+    });
+  });
+  const namaBerkas = new Set(sim.map((d) => upper(d.namaPoktan)));
+  const diLuarBerkas = state.petani.filter(
+    (p) => namaBerkas.has(upper(p.namaPoktan)) && !nikBerkas.has(cleanKtp(p.ktp))).length;
+  return { cocok, baru, tanpaNik, diLuarBerkas };
+}
 
 $('#simJalan').onclick = () => {
   if (!sim?.length) return;
   const mode = $('input[name="simMode"]:checked').value;
   const opt = simOpsi();
-  let masuk = 0, lewat = 0;
+  let masuk = 0, lewat = 0, digabung = 0, kolomTerisi = 0;
 
   sim.forEach((d) => {
     const rows = simKeRecord(d, opt);
@@ -1108,17 +1164,35 @@ $('#simJalan').onclick = () => {
       // hanya kelompok ini yang diganti — kelompok lain tidak disentuh
       state.petani = state.petani.filter((p) => upper(p.namaPoktan) !== nama);
     }
-    const ada = new Set(state.petani.map((p) => cleanKtp(p.ktp)).filter(Boolean));
+    const perNik = new Map();
+    state.petani.forEach((p) => { const k = cleanKtp(p.ktp); if (k) perNik.set(k, p); });
+
     rows.forEach((p) => {
       const k = cleanKtp(p.ktp);
-      if (k && ada.has(k)) { lewat++; return; }
-      if (k) ada.add(k);
+      const lama = k ? perNik.get(k) : null;
+      if (lama) {
+        if (mode === 'gabung') { kolomTerisi += gabungKeBaris(lama, p); digabung++; }
+        else lewat++;
+        return;
+      }
+      if (k) perNik.set(k, p);
       state.petani.push(p);
       masuk++;
     });
 
     // ID kelompok dari SIMLUHTAN adalah sumber paling tepercaya
-    if (d.idPoktan) state.poktanId[nama] = txt(d.idPoktan);
+    if (d.idPoktan) {
+      state.poktanId[nama] = txt(d.idPoktan);
+      // Anggota lama kelompok ini yang tidak ada di berkas pun ikut terisi —
+      // ID-nya sekarang diketahui. Hanya yang kosong; yang sudah terisi
+      // dibiarkan supaya tidak menimpa koreksi manual.
+      state.petani.forEach((p) => {
+        if (upper(p.namaPoktan) === nama && !txt(p.idPoktan)) {
+          p.idPoktan = txt(d.idPoktan);
+          kolomTerisi++;
+        }
+      });
+    }
 
     // simpan juga salinan mentahnya supaya bisa diunduh ulang per kelompok
     const judul = (d.matrix[d.barisJudul] || []).map((h) => txt(h));
@@ -1137,7 +1211,9 @@ $('#simJalan').onclick = () => {
 
   const tersimpan = emit();
   $('#simPanel').hidden = true; sim = null;
-  toast(`${fmt(masuk)} anggota diimpor${lewat ? ` · ${lewat} NIK ganda dilewati` : ''}`);
+  toast(mode === 'gabung'
+    ? `${fmt(masuk)} anggota baru ditambahkan · ${fmt(digabung)} baris lama dilengkapi (${fmt(kolomTerisi)} kolom terisi)`
+    : `${fmt(masuk)} anggota diimpor${lewat ? ` · ${lewat} NIK ganda dilewati` : ''}`);
   if (tersimpan === false) {
     toast('Penyimpanan peramban penuh — data hanya bertahan selama tab terbuka. Unduh cadangan.', 'err');
   }
