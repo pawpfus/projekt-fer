@@ -965,6 +965,9 @@ function renderPoktan() {
   const list = poktanRingkas();
   const belum = list.filter((o) => !o.id && !o.idTerpakai.length);
   const adaMentah = poktanMentah();
+  // Tanpa satu pun data mentah, tombolnya tidak digambar sama sekali —
+  // tombol pudar yang tak bisa ditekan terbaca seperti fitur rusak.
+  const adaMentahSamaSekali = adaMentah.size > 0;
   renderPoktanLaporan();
   renderMentahInfo();
 
@@ -994,10 +997,10 @@ function renderPoktan() {
         <input type="checkbox" data-pmaas="${esc(o.nama)}"${state.pmaas.poktan[o.nama] ? ' checked' : ''} />
       </label></td>
       <td><div class="row-acts">
-        <button class="btn btn-sm btn-icon" data-unduh-mentah="${esc(o.nama)}"${adaMentah.has(o.nama) ? '' : ' disabled'}
+        ${adaMentahSamaSekali ? `<button class="btn btn-sm btn-icon" data-unduh-mentah="${esc(o.nama)}"${adaMentah.has(o.nama) ? '' : ' disabled'}
             title="${adaMentah.has(o.nama)
               ? 'Unduh data mentah kelompok ini — persis seperti berkas yang diunggah'
-              : 'Data mentah kelompok ini tidak tersimpan'}"><i class="ti ti-file-spreadsheet"></i></button>
+              : 'Kelompok ini tidak ada di berkas yang diunggah'}"><i class="ti ti-file-spreadsheet"></i></button>` : ''}
         <button class="btn btn-sm btn-icon" data-unduh-poktan="${esc(o.nama)}"
             title="Unduh template ERDKK kelompok ini"><i class="ti ti-download"></i></button>
       </div></td>
@@ -1046,10 +1049,19 @@ function renderMentahInfo() {
   if (!box) return;
   const r = mentahRingkas();
   if (!r.baris) {
+    // Data yang diimpor sebelum fitur ini ada memang tidak punya salinan
+    // mentah — baris aslinya dibuang begitu impor selesai. Katakan apa
+    // adanya, jangan biarkan pengguna mengira tombolnya rusak.
     box.innerHTML = `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div>
-      <b>Data mentah belum tersimpan</b>
-      Impor database sekali lagi, lalu tiap kelompok bisa diunduh datanya persis
-      seperti berkas yang Anda unggah.</div></div>`;
+      <b>Belum ada data mentah untuk diunduh</b>
+      Data yang sudah ada di sini diimpor sebelum fitur ini dibuat, jadi baris
+      aslinya tidak ikut tersimpan dan tidak bisa dimunculkan kembali.
+      Impor ulang berkas database yang sama — data petani tidak akan berubah
+      selama Anda memilih <b>Ganti</b> — lalu tombol unduh mentah muncul di
+      tiap kelompok.</div>
+      <button class="btn btn-sm" id="btnKeImpor" style="margin-left:auto;align-self:start">
+        <i class="ti ti-file-upload"></i>Impor</button></div>`;
+    $('#btnKeImpor').onclick = () => go('impor');
     return;
   }
   // Saat semuanya beres cukup satu baris — tab ini sudah penuh spanduk.
