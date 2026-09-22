@@ -13,11 +13,12 @@ import {
   isiMusimTanam, sebaranPetani, sebaranLuasKomoditas, sebaranLuasWilayah,
   sebaranBarisMt, sebaranPupuk, isPmaas, dosisBerlaku, pmaasRingkas, setPmaas,
   janganSimpan, setJanganSimpan, bersihkanSesi,
+  simpanMentah, hapusMentah, mentahRingkas, mentahUntukPoktan, poktanMentah,
 } from './store.js';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
   parseDosisSheet, buildTemplateWorkbook, downloadWorkbook,
-  buildBackupWorkbook, backupToPetani, bacaDaftarPoktan,
+  buildBackupWorkbook, backupToPetani, bacaDaftarPoktan, buildMentahWorkbook,
 } from './xlsxio.js';
 
 /* ── helper DOM ──────────────────────────────────────────── */
@@ -905,12 +906,35 @@ $('#impJalan').onclick = () => {
     });
   }
 
+  // Simpan baris apa adanya sebelum imp dibuang, supaya tiap kelompok bisa
+  // menerima kembali data aslinya — bukan hasil olahan aplikasi.
+  simpanMentah(bagianMentah(), mode === 'replace');
+
   state.petani.push(...rows.map(normalizePetani));
-  emit();
+  const tersimpan = emit();
   $('#impPanel').hidden = true; imp = null;
   toast(`${fmt(rows.length)} petani diimpor${lewat ? ` · ${lewat} NIK ganda dilewati` : ''}`);
+  if (tersimpan === false) {
+    toast('Penyimpanan peramban penuh — data hanya bertahan selama tab terbuka. Unduh cadangan.', 'err');
+  }
   go('data');
 };
+
+/** Potret baris mentah sheet yang sedang diimpor, siap disimpan. */
+function bagianMentah() {
+  const judul = (imp.matrix[imp.headerRow] || []).map((h) => txt(h));
+  const iPoktan = imp.map.namaPoktan;
+  const baris = imp.matrix.slice(imp.headerRow + 1)
+    .filter((r) => r && r.some((c) => txt(c) !== ''));
+  return {
+    nama: txt(imp.sheet) || txt(imp.nama) || 'Data',
+    berkas: txt(imp.nama),
+    waktu: new Date().toISOString().slice(0, 10),
+    judul,
+    baris,
+    iPoktan: iPoktan == null || iPoktan < 0 ? null : iPoktan,
+  };
+}
 
 /* ============================================================
    ID POKTAN
@@ -940,7 +964,9 @@ function renderPoktanLaporan() {
 function renderPoktan() {
   const list = poktanRingkas();
   const belum = list.filter((o) => !o.id && !o.idTerpakai.length);
+  const adaMentah = poktanMentah();
   renderPoktanLaporan();
+  renderMentahInfo();
 
   $('#poktanKosong').innerHTML = !list.length
     ? `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div><b>Belum ada nama poktan di data</b>Impor database poktan lebih dulu.</div></div>`
@@ -967,8 +993,14 @@ function renderPoktan() {
       <td><label class="check" style="justify-content:center">
         <input type="checkbox" data-pmaas="${esc(o.nama)}"${state.pmaas.poktan[o.nama] ? ' checked' : ''} />
       </label></td>
-      <td><div class="row-acts"><button class="btn btn-sm btn-icon" data-unduh-poktan="${esc(o.nama)}"
-            title="Unduh template ERDKK kelompok ini"><i class="ti ti-download"></i></button></div></td>
+      <td><div class="row-acts">
+        <button class="btn btn-sm btn-icon" data-unduh-mentah="${esc(o.nama)}"${adaMentah.has(o.nama) ? '' : ' disabled'}
+            title="${adaMentah.has(o.nama)
+              ? 'Unduh data mentah kelompok ini — persis seperti berkas yang diunggah'
+              : 'Data mentah kelompok ini tidak tersimpan'}"><i class="ti ti-file-spreadsheet"></i></button>
+        <button class="btn btn-sm btn-icon" data-unduh-poktan="${esc(o.nama)}"
+            title="Unduh template ERDKK kelompok ini"><i class="ti ti-download"></i></button>
+      </div></td>
     </tr>`;
   }).join('') || `<tr><td colspan="8"><div class="tbl-empty"><i class="ti ti-users-off"></i><b>Belum ada kelompok tani</b>Nama poktan diambil dari kolom "Nama Poktan" saat impor.</div></td></tr>`;
 
@@ -1008,7 +1040,51 @@ function hitungUlangPmaas(namaList) {
 }
 
 
+/** Keterangan data mentah tersimpan + tombol hapusnya. */
+function renderMentahInfo() {
+  const box = $('#mentahInfo');
+  if (!box) return;
+  const r = mentahRingkas();
+  if (!r.baris) {
+    box.innerHTML = `<div class="alert alert-info"><i class="ti ti-info-circle"></i><div>
+      <b>Data mentah belum tersimpan</b>
+      Impor database sekali lagi, lalu tiap kelompok bisa diunduh datanya persis
+      seperti berkas yang Anda unggah.</div></div>`;
+    return;
+  }
+  // Saat semuanya beres cukup satu baris — tab ini sudah penuh spanduk.
+  // Penjelasan panjang disimpan untuk kasus yang memang perlu dijelaskan.
+  box.innerHTML = r.adaKolomPoktan
+    ? `<div class="alert alert-ok"><i class="ti ti-database"></i><div>
+         <b>${fmt(r.baris)} baris data mentah tersimpan</b></div>
+       <button class="btn btn-sm" id="btnHapusMentah" style="margin-left:auto;align-self:center">
+         <i class="ti ti-trash"></i>Hapus</button></div>`
+    : `<div class="alert alert-warn"><i class="ti ti-alert-triangle"></i><div>
+         <b>Data mentah tidak bisa dipisah per kelompok</b>
+         Berkas yang diunggah tidak punya kolom Nama Poktan, jadi ${fmt(r.baris)} baris
+         mentah itu tersimpan tapi tak ada dasar untuk memecahnya.</div>
+       <button class="btn btn-sm" id="btnHapusMentah" style="margin-left:auto;align-self:start">
+         <i class="ti ti-trash"></i>Hapus</button></div>`;
+  $('#btnHapusMentah').onclick = () => {
+    if (!confirm(`Hapus ${fmt(r.baris)} baris data mentah dari peramban ini?\n\nData petani yang sudah diimpor tidak ikut terhapus.`)) return;
+    hapusMentah();
+    emit(); renderPoktan();
+    toast('Data mentah dihapus');
+  };
+}
+
 $('#tbodyPoktan').addEventListener('click', (e) => {
+  const btnMentah = e.target.closest('[data-unduh-mentah]');
+  if (btnMentah) {
+    const nama = btnMentah.dataset.unduhMentah;
+    const bagian = mentahUntukPoktan(nama);
+    if (!bagian.length) return toast('Data mentah kelompok ini tidak tersimpan', 'warn');
+    const jml = bagian.reduce((s, b) => s + b.baris.length, 0);
+    downloadWorkbook(buildMentahWorkbook(bagian), `data-mentah-${slug(nama)}`);
+    toast(`${nama}: ${fmt(jml)} baris mentah diunduh`);
+    return;
+  }
+
   const btn = e.target.closest('[data-unduh-poktan]');
   if (!btn) return;
   const nama = btn.dataset.unduhPoktan;

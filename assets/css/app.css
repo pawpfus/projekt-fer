@@ -732,6 +732,9 @@ fieldset.mt legend {
   #tblPoktan tbody tr[data-poktan] td:nth-child(5) input { width: 100%; min-width: 92px; }
   #tblPoktan th:nth-child(7) { width: 56px; }
   #tblPoktan th:nth-child(8) { width: 44px; }
+  /* dua tombol unduh (mentah & template) ditumpuk, bukan berjajar — berjajar
+     menambah 40px dan tabelnya kembali menggulir mendatar */
+  #tblPoktan .row-acts { flex-direction: column; gap: 6px; }
   #tblPoktan th:nth-child(2),
   #tblPoktan tbody tr[data-poktan] td:nth-child(2) {
     position: sticky; left: 0;

@@ -279,6 +279,40 @@ export function buildTemplateWorkbook(list, opts = {}) {
   return wb;
 }
 
+/** Workbook data mentah: satu sheet per berkas asal, isinya persis seperti
+ *  saat dibaca. Tidak ada kolom yang ditambah, dibuang, atau dinormalkan —
+ *  itu gunanya "mentah".
+ *  @param {{nama?:string, judul:any[], baris:any[][]}[]} bagian */
+export function buildMentahWorkbook(bagian) {
+  const wb = XLSX.utils.book_new();
+  const terpakai = new Set();
+
+  bagian.forEach((b, i) => {
+    const ws = XLSX.utils.aoa_to_sheet([b.judul, ...b.baris], { cellDates: false });
+
+    // Isi berkas unggahan tidak boleh keluar sebagai rumus. Sel yang isinya
+    // diawali "=", "+", "-", "@" bisa dieksekusi Excel saat dibuka.
+    Object.keys(ws).forEach((ref) => {
+      if (ref[0] === '!') return;
+      const cell = ws[ref];
+      if (cell && cell.f != null) { delete cell.f; cell.t = 's'; cell.v = String(cell.v ?? ''); }
+    });
+
+    ws['!cols'] = b.judul.map((h) => ({ wch: Math.max(10, Math.min(38, String(h ?? '').length + 2)) }));
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+    // Nama sheet Excel: maksimal 31 karakter, tanpa : \ / ? * [ ] dan unik
+    let nama = String(b.nama || `Sheet${i + 1}`).replace(/[:\\/?*[\]]/g, ' ').trim().slice(0, 31) || `Sheet${i + 1}`;
+    let n = 2;
+    while (terpakai.has(nama.toLowerCase())) nama = `${nama.slice(0, 28)} ${n++}`;
+    terpakai.add(nama.toLowerCase());
+
+    XLSX.utils.book_append_sheet(wb, ws, nama);
+  });
+
+  return wb;
+}
+
 export function downloadWorkbook(wb, filename) {
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : filename + '.xlsx', {
     bookType: 'xlsx', compression: true,

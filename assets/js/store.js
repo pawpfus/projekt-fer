@@ -12,7 +12,10 @@ const KEY = 'projekt-fer:v1';
 const LS = {
   ada() { try { return typeof localStorage !== 'undefined' && localStorage !== null; } catch (e) { return false; } },
   get(k) { try { return this.ada() ? localStorage.getItem(k) : null; } catch (e) { return null; } },
-  set(k, v) { try { if (this.ada()) localStorage.setItem(k, v); } catch (e) { /* penuh atau diblokir */ } },
+  /* mengembalikan false bila gagal — pemanggil perlu tahu, sebab seluruh
+     state ditulis ke satu kunci: sekali kuota penuh, semuanya tidak
+     tersimpan, bukan cuma bagian terakhir */
+  set(k, v) { try { if (!this.ada()) return false; localStorage.setItem(k, v); return true; } catch (e) { return false; } },
   del(k) { try { if (this.ada()) localStorage.removeItem(k); } catch (e) { /* diabaikan */ } },
 };
 
@@ -84,11 +87,15 @@ export const state = {
   poktanId: {},
   /** program PM-AAS: kuota pupuk sendiri + daftar kelompok pesertanya */
   pmaas: { dosis: { ...PMAAS_DEFAULT }, poktan: {} },
+  /** salinan baris apa adanya dari tiap berkas yang diunggah — lihat
+   *  bagian "DATA MENTAH" di bawah */
+  mentah: [],
 };
 
 const subs = new Set();
 export const onChange = (fn) => { subs.add(fn); return () => subs.delete(fn); };
-export function emit() { save(); subs.forEach((f) => f()); }
+/** @returns {boolean} false bila state gagal ditulis ke penyimpanan */
+export function emit() { const ok = save(); subs.forEach((f) => f()); return ok; }
 
 /** Mode privasi: data tidak ditulis ke localStorage sama sekali. */
 export let janganSimpan = LS.get(KEY + ':off') === '1';
@@ -104,16 +111,19 @@ export function bersihkanSesi() {
   state.petani = [];
   state.poktanId = {};
   state.pmaas.poktan = {};
+  state.mentah = [];
   LS.del(KEY);
   try { sessionStorage.clear(); } catch (e) { /* penyimpanan terkunci — abaikan */ }
 }
 
+/** @returns {boolean} false bila penyimpanan menolak (kuota penuh/diblokir) */
 export function save() {
-  if (janganSimpan) return;
-  LS.set(KEY, JSON.stringify({
+  if (janganSimpan) return true;
+  return LS.set(KEY, JSON.stringify({
     petani: state.petani, dosis: state.dosis,
     dosisMeta: state.dosisMeta, settings: state.settings,
     poktanId: state.poktanId, pmaas: state.pmaas,
+    mentah: state.mentah,
   }));
 }
 
@@ -133,6 +143,7 @@ export function load() {
         poktan: d.pmaas.poktan && typeof d.pmaas.poktan === 'object' ? d.pmaas.poktan : {},
       };
     }
+    if (Array.isArray(d.mentah)) state.mentah = d.mentah.filter(mentahSah);
     return true;
   } catch (e) {
     console.warn('Gagal memuat data tersimpan', e);
@@ -435,6 +446,76 @@ export function terapkanPoktanId({ timpa = false } = {}) {
     n++;
   });
   return n;
+}
+
+/* ── DATA MENTAH ─────────────────────────────────────────── */
+/* Salinan baris apa adanya dari berkas yang diunggah, supaya tiap kelompok
+   bisa menerima kembali datanya dalam bentuk asli — bukan hasil olahan
+   aplikasi. Disimpan per unggahan, bukan digabung jadi satu tabel, karena
+   dua berkas bisa punya susunan kolom yang sama sekali berbeda; menumpuknya
+   di bawah satu baris judul akan menggeser isi kolom tanpa ketahuan.
+
+   Bentuk satu unggahan:
+     { nama, waktu, judul: string[], baris: any[][], iPoktan: number|null }
+   iPoktan = indeks kolom nama poktan di baris mentah, null bila berkasnya
+   memang tidak punya kolom itu. */
+
+/** Batas baris mentah yang disimpan — di atas ini localStorage mudah penuh
+ *  dan kegagalannya menjatuhkan seluruh state, bukan cuma data mentah. */
+export const BATAS_MENTAH = 8000;
+
+function mentahSah(b) {
+  return !!b && Array.isArray(b.judul) && Array.isArray(b.baris);
+}
+
+export function simpanMentah(bagian, ganti) {
+  if (!mentahSah(bagian)) return;
+  if (ganti) state.mentah = [];
+  state.mentah.push(bagian);
+  // buang unggahan terlama sampai muat
+  let total = state.mentah.reduce((s, b) => s + b.baris.length, 0);
+  while (state.mentah.length > 1 && total > BATAS_MENTAH) {
+    total -= state.mentah.shift().baris.length;
+  }
+}
+
+export function hapusMentah() {
+  state.mentah = [];
+}
+
+/** Ringkasan untuk ditampilkan di UI. */
+export function mentahRingkas() {
+  const baris = state.mentah.reduce((s, b) => s + b.baris.length, 0);
+  return {
+    unggahan: state.mentah.length,
+    baris,
+    adaKolomPoktan: state.mentah.some((b) => b.iPoktan != null),
+    nama: state.mentah.map((b) => b.nama).filter(Boolean),
+  };
+}
+
+/** Baris mentah milik satu kelompok, dikembalikan per unggahan asalnya.
+ *  Unggahan tanpa baris yang cocok tidak ikut. */
+export function mentahUntukPoktan(nama) {
+  const cari = upper(nama);
+  const keluar = [];
+  state.mentah.forEach((b) => {
+    if (b.iPoktan == null) return;
+    const baris = b.baris.filter((r) => upper(r[b.iPoktan]) === cari);
+    if (baris.length) keluar.push({ nama: b.nama, judul: b.judul, baris });
+  });
+  return keluar;
+}
+
+/** Nama kelompok yang benar-benar ada di data mentah (untuk memberi tahu
+ *  kelompok mana yang bisa diunduh mentahnya). */
+export function poktanMentah() {
+  const set = new Set();
+  state.mentah.forEach((b) => {
+    if (b.iPoktan == null) return;
+    b.baris.forEach((r) => { const n = upper(r[b.iPoktan]); if (n) set.add(n); });
+  });
+  return set;
 }
 
 /* ── NIK ganda ───────────────────────────────────────────── */
