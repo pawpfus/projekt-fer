@@ -2,37 +2,39 @@
    schema.js — struktur template ERDKK, dosis bawaan, alias kolom
    ============================================================ */
 
-/** Judul kolom template ERDKK persis seperti berkas resmi (28 kolom, A–AB).
- *  Perhatikan: "Luas Lahan (Ha)  MT2" dan MT3 memakai DUA spasi — jangan diubah. */
+/** Judul kolom template ERDKK 2027 persis seperti berkas resmi (28 kolom, A-AB).
+ *  Ditulis dari berkas, bukan diketik ulang. Template 2026 memakai "MT1/MT2/MT3"
+ *  dengan spasi ganda pada dua kolom; 2027 memakai "Periode Tanam I/II/III"
+ *  dan spasi gandanya hilang. */
 export const TEMPLATE_HEADERS = [
   'Nama Penyuluh',
   'KTP',
   'Nama Ibu Kandung',
   'Kode Desa',
   'ID Poktan',
-  'Kode Kios',
+  'Kode Kios Pengecer',
   'Subsektor',
-  'Komoditas MT1',
-  'Luas Lahan (Ha) MT1',
-  'Pupuk Urea (Kg) MT1',
-  'Pupuk NPK (Kg) MT1',
-  'Pupuk NPK Formula Khusus (Kg) MT1',
-  'Pupuk Organik (Kg) MT1',
-  'Pupuk Za (Kg) MT1',
-  'Komoditas MT2',
-  'Luas Lahan (Ha)  MT2',
-  'Pupuk Urea (Kg) MT2',
-  'Pupuk NPK (Kg) MT2',
-  'Pupuk NPK Formula Khusus (Kg) MT2',
-  'Pupuk Organik (Kg) MT2',
-  'Pupuk Za (Kg) MT2',
-  'Komoditas MT3',
-  'Luas Lahan (Ha)  MT3',
-  'Pupuk Urea (Kg) MT3',
-  'Pupuk NPK (Kg) MT3',
-  'Pupuk NPK Formula Khusus (Kg) MT3',
-  'Pupuk Organik (Kg) MT3',
-  'Pupuk Za (Kg) MT3',
+  'Komoditas Periode Tanam I',
+  'Luas Lahan (Ha) Periode Tanam I',
+  'Pupuk Urea (Kg) Periode Tanam I',
+  'Pupuk NPK (Kg) Periode Tanam I',
+  'Pupuk NPK Formula Khusus (Kg) Periode Tanam I',
+  'Pupuk Organik (Kg) Periode Tanam I',
+  'Pupuk Za (Kg) Periode Tanam I',
+  'Komoditas Periode Tanam II',
+  'Luas Lahan (Ha) Periode Tanam II',
+  'Pupuk Urea (Kg) Periode Tanam II',
+  'Pupuk NPK (Kg) Periode Tanam II',
+  'Pupuk NPK Formula Khusus (Kg) Periode Tanam II',
+  'Pupuk Organik (Kg) Periode Tanam II',
+  'Pupuk Za (Kg) Periode Tanam II',
+  'Komoditas Periode Tanam III',
+  'Luas Lahan (Ha) Periode Tanam III',
+  'Pupuk Urea (Kg) Periode Tanam III',
+  'Pupuk NPK (Kg) Periode Tanam III',
+  'Pupuk NPK Formula Khusus (Kg) Periode Tanam III',
+  'Pupuk Organik (Kg) Periode Tanam III',
+  'Pupuk Za (Kg) Periode Tanam III',
 ];
 
 /** Jenis pupuk yang dipakai template (sp36 & poc tidak ada kolomnya). */
@@ -80,7 +82,7 @@ export const SETTINGS_DEFAULT = {
   kodeKios: '',
   namaKios: '',
   idPoktanDefault: '',
-  sheetName: 'Worksheet',
+  sheetName: '2027',
   batasLuas: 2,            // Ha per musim tanam — di atas ini diberi peringatan
   tulisNol: false,         // false = sel pupuk 0 dikosongkan (seperti contoh resmi)
   salinMt2: true,          // saat input manual, MT2 mengikuti MT1
@@ -112,17 +114,17 @@ export const FIELDS = [
   { key: 'subsektor',    label: 'Subsektor',         req: false, note: 'otomatis dari komoditas MT1 bila kosong',
     alias: ['subsektor', 'sub sektor', 'sub-sektor'] },
   { key: 'mt1Komoditas', label: 'Komoditas MT1',     req: true,  note: 'kolom H template',
-    alias: ['komoditas mt1', 'komoditas mt 1', 'komoditi mt1', 'komoditas'] },
+    alias: ['komoditas mt1', 'komoditas periode tanam i', 'komoditas mt 1', 'komoditi mt1', 'komoditas'] },
   { key: 'mt1Luas',      label: 'Luas Lahan MT1',    req: true,  note: 'hektar',
-    alias: ['luas lahan (ha) mt1', 'luas lahan mt1', 'luas mt1', 'luas lahan (ha)  mt1', 'luas tanam mt1', 'luas lahan'] },
+    alias: ['luas lahan (ha) mt1', 'luas lahan (ha) periode tanam i', 'luas lahan mt1', 'luas mt1', 'luas lahan (ha)  mt1', 'luas tanam mt1', 'luas lahan'] },
   { key: 'mt2Komoditas', label: 'Komoditas MT2',     req: false, note: '',
-    alias: ['komoditas mt2', 'komoditas mt 2', 'komoditi mt2'] },
+    alias: ['komoditas mt2', 'komoditas periode tanam ii', 'komoditas mt 2', 'komoditi mt2'] },
   { key: 'mt2Luas',      label: 'Luas Lahan MT2',    req: false, note: 'hektar',
-    alias: ['luas lahan (ha) mt2', 'luas lahan (ha)  mt2', 'luas lahan mt2', 'luas mt2', 'luas tanam mt2'] },
+    alias: ['luas lahan (ha) mt2', 'luas lahan (ha) periode tanam ii', 'luas lahan (ha)  mt2', 'luas lahan mt2', 'luas mt2', 'luas tanam mt2'] },
   { key: 'mt3Komoditas', label: 'Komoditas MT3',     req: false, note: '',
-    alias: ['komoditas mt3', 'komoditas mt 3', 'komoditi mt3'] },
+    alias: ['komoditas mt3', 'komoditas periode tanam iii', 'komoditas mt 3', 'komoditi mt3'] },
   { key: 'mt3Luas',      label: 'Luas Lahan MT3',    req: false, note: 'hektar',
-    alias: ['luas lahan (ha) mt3', 'luas lahan (ha)  mt3', 'luas lahan mt3', 'luas mt3', 'luas tanam mt3'] },
+    alias: ['luas lahan (ha) mt3', 'luas lahan (ha) periode tanam iii', 'luas lahan (ha)  mt3', 'luas lahan mt3', 'luas mt3', 'luas tanam mt3'] },
 ];
 
 /** Alias untuk berkas dosis (format Dosis_<tahun>_..._<kecamatan>.xlsx). */

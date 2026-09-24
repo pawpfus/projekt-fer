@@ -1410,7 +1410,7 @@ $('#tbodyPoktan').addEventListener('click', (e) => {
 
   const base = slug(state.settings.namaFile) || 'template-erdkk';
   downloadWorkbook(buildTemplateWorkbook(rows, {
-    sheetName: txt(state.settings.sheetName) || 'Worksheet',
+    sheetName: txt(state.settings.sheetName) || SETTINGS_DEFAULT.sheetName,
     tulisNol: false,
   }), `${base}-${slug(nama)}`);
   toast(`${esc(nama)}: ${fmt(rows.length)} baris diunduh`);
@@ -1768,7 +1768,7 @@ const slug = (s) => txt(s).replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').re
 
 function eksporOpts() {
   return {
-    sheetName: txt($('#expSheet').value) || 'Worksheet',
+    sheetName: txt($('#expSheet').value) || SETTINGS_DEFAULT.sheetName,
     tulisNol: $('#expNol').checked,
   };
 }

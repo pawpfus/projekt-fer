@@ -132,6 +132,11 @@ export function save() {
  *  tidak pernah diutak-atik. */
 const NAMA_FILE_LAWAS = ['template-erdkk-2025', 'template-erdkk-2026'];
 
+/** Nama sheet bawaan dari template tahun sebelumnya. Template 2027 memakai
+ *  "2027"; yang 2026 ke bawah memakai "Worksheet". Diperlakukan sama seperti
+ *  nama berkas: dinaikkan hanya bila pengguna belum pernah mengubahnya. */
+const SHEET_LAWAS = ['Worksheet'];
+
 export function load() {
   try {
     const raw = LS.get(KEY);
@@ -147,6 +152,7 @@ export function load() {
       // dinaikkan di sini — tapi hanya bila pengguna memang belum pernah
       // mengubahnya sendiri.
       if (NAMA_FILE_LAWAS.includes(s.namaFile)) s.namaFile = SETTINGS_DEFAULT.namaFile;
+      if (SHEET_LAWAS.includes(s.sheetName)) s.sheetName = SETTINGS_DEFAULT.sheetName;
       state.settings = s;
     }
     if (d.poktanId && typeof d.poktanId === 'object') state.poktanId = d.poktanId;
