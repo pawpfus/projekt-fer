@@ -4,10 +4,10 @@
 
 import {
   TEMPLATE_HEADERS, PUPUK, FIELDS, DOSIS_ALIAS, normHeader,
-} from './schema.js?v=20260922';
+} from './schema.js?v=20261011';
 import {
   state, uid, cleanKtp, num, numLuas, txt, upper, recalcPetani, emptyMt,
-} from './store.js?v=20260922';
+} from './store.js?v=20261011';
 
 /* ── BACA ────────────────────────────────────────────────── */
 
@@ -296,6 +296,80 @@ export function bacaDaftarPoktan(matrix) {
   return hasil;
 }
 
+/* ── BACA UNTUK PERBANDINGAN TAHUN ───────────────────────── */
+
+/** Baca satu sheet (template ERDKK atau database poktan) menjadi catatan
+ *  ringkas untuk dibandingkan antar tahun. Hanya kolom yang dipakai
+ *  perbandingan yang diambil; pupuk diabaikan karena ikut luas.
+ *
+ *  Berkas tahun lalu boleh berformat 2026 ("MT1") maupun 2027
+ *  ("Periode Tanam I") — alias di FIELDS menerima keduanya.
+ *  NIK ganda dalam satu berkas digabung dan luasnya dijumlahkan, sama
+ *  seperti perlakuan "NIK Ganda" di tab Check.
+ *  @returns {{ktp:string, nama:string, idPoktan:string, namaPoktan:string,
+ *             kodeDesa:string, namaDesa:string, kom:string[], luas:number[],
+ *             baris:number, ganda:number}[]} */
+export function bacaBandingan(matrix) {
+  if (!matrix.length) return [];
+  const hr = guessHeaderRow(matrix);
+  const map = autoMap(matrix[hr] || []);
+  if (map.ktp == null) return [];   // tanpa kolom KTP tidak ada yang bisa dicocokkan
+
+  const amb = (row, key) => {
+    const i = map[key];
+    return i == null || i < 0 ? '' : row[i];
+  };
+
+  const peta = new Map();
+  for (let k = hr + 1; k < matrix.length; k++) {
+    const row = matrix[k];
+    if (!row || row.every((c) => txt(c) === '')) continue;
+    const ktp = cleanKtp(amb(row, 'ktp'));
+    if (!ktp) continue;
+
+    const luas = [0, 1, 2].map((i) => numLuas(amb(row, `mt${i + 1}Luas`)));
+    const kom = [0, 1, 2].map((i) => {
+      const s = upper(amb(row, `mt${i + 1}Komoditas`));
+      return s === '-' || luas[i] <= 0 ? '' : s;
+    });
+
+    const lama = peta.get(ktp);
+    if (lama) {
+      lama.luas = lama.luas.map((v, i) => v + luas[i]);
+      lama.kom = lama.kom.map((v, i) => v || kom[i]);
+      lama.nama = lama.nama || upper(amb(row, 'namaPetani'));
+      lama.ganda++;
+      continue;
+    }
+
+    peta.set(ktp, {
+      ktp,
+      nama: upper(amb(row, 'namaPetani')),
+      namaIbu: upper(amb(row, 'namaIbu')),
+      idPoktan: txt(amb(row, 'idPoktan')),
+      namaPoktan: upper(amb(row, 'namaPoktan')),
+      kodeDesa: txt(amb(row, 'kodeDesa')),
+      namaDesa: upper(amb(row, 'namaDesa')),
+      kom, luas,
+      baris: k + 1,
+      ganda: 1,
+    });
+  }
+  return [...peta.values()];
+}
+
+/** Baca seluruh sheet sebuah workbook, ambil yang catatannya paling banyak.
+ *  Berkas unduhan sering memuat sheet petunjuk atau sheet kosong di sampingnya.
+ *  @returns {{sheet:string, baris:object[]}} */
+export function bacaBandinganWb(wb) {
+  let pilih = { sheet: '', baris: [] };
+  wb.SheetNames.forEach((s) => {
+    const baris = bacaBandingan(sheetToMatrix(wb, s));
+    if (baris.length > pilih.baris.length) pilih = { sheet: s, baris };
+  });
+  return pilih;
+}
+
 /* ── TULIS TEMPLATE ──────────────────────────────────────── */
 
 /** Satu record petani → satu baris array sesuai urutan TEMPLATE_HEADERS. */
@@ -363,16 +437,25 @@ export function buildTemplateWorkbook(list, opts = {}) {
   return wb;
 }
 
-/** Workbook data mentah: satu sheet per berkas asal, isinya persis seperti
- *  saat dibaca. Tidak ada kolom yang ditambah, dibuang, atau dinormalkan —
- *  itu gunanya "mentah".
- *  @param {{nama?:string, judul:any[], baris:any[][]}[]} bagian */
-export function buildMentahWorkbook(bagian) {
+/** Workbook bertabel: satu sheet per bagian, judul di baris pertama.
+ *  Dipakai untuk unduhan data mentah (isinya persis seperti saat dibaca) dan
+ *  untuk laporan selisih antar tahun.
+ *  @param {{nama?:string, judul:any[], baris:any[][], ktpKol?:number}[]} bagian
+ *         ktpKol = indeks kolom NIK yang harus ditulis sebagai teks */
+export function buildTabelWorkbook(bagian) {
   const wb = XLSX.utils.book_new();
   const terpakai = new Set();
 
   bagian.forEach((b, i) => {
     const ws = XLSX.utils.aoa_to_sheet([b.judul, ...b.baris], { cellDates: false });
+
+    // Kolom NIK dipaksa teks agar 16 digit tidak jadi notasi ilmiah di Excel
+    if (b.ktpKol != null && b.ktpKol >= 0) {
+      for (let r = 1; r <= b.baris.length; r++) {
+        const cell = ws[XLSX.utils.encode_cell({ c: b.ktpKol, r })];
+        if (cell) { cell.t = 's'; cell.z = '@'; cell.v = String(cell.v ?? ''); }
+      }
+    }
 
     // Isi berkas unggahan tidak boleh keluar sebagai rumus. Sel yang isinya
     // diawali "=", "+", "-", "@" bisa dieksekusi Excel saat dibuka.
@@ -396,6 +479,9 @@ export function buildMentahWorkbook(bagian) {
 
   return wb;
 }
+
+/** Nama lama, dipertahankan agar pemanggil unduhan mentah tidak ikut berubah. */
+export const buildMentahWorkbook = buildTabelWorkbook;
 
 export function downloadWorkbook(wb, filename) {
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : filename + '.xlsx', {

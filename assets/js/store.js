@@ -2,7 +2,7 @@
    store.js — state, penyimpanan lokal, hitung pupuk, validasi
    ============================================================ */
 
-import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js?v=20260922';
+import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js?v=20261011';
 
 const KEY = 'projekt-fer:v1';
 
@@ -535,6 +535,76 @@ export function poktanMentah() {
     b.baris.forEach((r) => { const n = upper(r[b.iPoktan]); if (n) set.add(n); });
   });
   return set;
+}
+
+/* ── BANDING ANTAR TAHUN ─────────────────────────────────── */
+
+/** Toleransi selisih luas (Ha). Di bawah ini dianggap tidak berubah —
+ *  pembulatan berkas sumber sering menyisakan beda 0,001 Ha. */
+const AMBANG_LUAS = 0.01;
+
+const totalLuas = (a) => (a || []).reduce((s, v) => s + numLuas(v), 0);
+
+/** Bandingkan dua daftar catatan hasil bacaBandingan(), dikunci pada NIK.
+ *
+ *  Empat kelompok hasil, saling lepas:
+ *   · hilang — NIK tahun lalu yang tidak ada lagi tahun ini
+ *   · pindah — NIK ada di dua tahun, tapi kelompoknya berbeda
+ *   · turun  — NIK & kelompok sama, total luas berkurang
+ *   · baru   — NIK yang hanya ada tahun ini
+ *  Sisanya masuk hitungan "tetap".
+ *
+ *  Kelompok dibandingkan lewat ID Poktan bila kedua berkas memuatnya; kalau
+ *  salah satu kosong, nama poktan dipakai. Bila dua-duanya kosong, pindah
+ *  kelompok tidak bisa dinilai dan baris itu dianggap sekelompok. */
+export function bandingTahun(lalu, ini) {
+  const pIni = new Map(ini.map((r) => [r.ktp, r]));
+  const pLalu = new Map(lalu.map((r) => [r.ktp, r]));
+
+  const hilang = [], pindah = [], turun = [];
+  let tetap = 0;
+
+  lalu.forEach((a) => {
+    const b = pIni.get(a.ktp);
+    if (!b) { hilang.push({ lalu: a }); return; }
+
+    const kunciA = txt(a.idPoktan) || upper(a.namaPoktan);
+    const kunciB = txt(b.idPoktan) || upper(b.namaPoktan);
+    if (kunciA && kunciB && kunciA !== kunciB) { pindah.push({ lalu: a, ini: b }); return; }
+
+    const tl = totalLuas(a.luas), ti = totalLuas(b.luas);
+    if (tl - ti > AMBANG_LUAS) { turun.push({ lalu: a, ini: b, selisih: tl - ti }); return; }
+    tetap++;
+  });
+
+  const baru = ini.filter((b) => !pLalu.has(b.ktp)).map((b) => ({ ini: b }));
+
+  // yang luasnya besar lebih dulu — itu yang paling berdampak ke alokasi
+  hilang.sort((x, y) => totalLuas(y.lalu.luas) - totalLuas(x.lalu.luas));
+  turun.sort((x, y) => y.selisih - x.selisih);
+
+  return { hilang, pindah, turun, baru, tetap, nLalu: lalu.length, nIni: ini.length };
+}
+
+/** Rekap selisih per kelompok tani, diurutkan dari yang paling banyak hilang.
+ *  @param nama fungsi (catatan) → nama kelompok yang ditampilkan */
+export function rekapSelisih(hasil, nama) {
+  const peta = new Map();
+  const ambil = (k) => {
+    if (!peta.has(k)) peta.set(k, { nama: k, hilang: 0, pindah: 0, turun: 0, baru: 0, luasHilang: 0 });
+    return peta.get(k);
+  };
+
+  hasil.hilang.forEach((x) => {
+    const o = ambil(nama(x.lalu));
+    o.hilang++; o.luasHilang += totalLuas(x.lalu.luas);
+  });
+  hasil.pindah.forEach((x) => ambil(nama(x.lalu)).pindah++);
+  hasil.turun.forEach((x) => ambil(nama(x.lalu)).turun++);
+  hasil.baru.forEach((x) => ambil(nama(x.ini)).baru++);
+
+  return [...peta.values()].sort((a, b) =>
+    b.hilang - a.hilang || b.turun - a.turun || a.nama.localeCompare(b.nama));
 }
 
 /* ── NIK ganda ───────────────────────────────────────────── */

@@ -4,7 +4,7 @@
 
 import {
   PUPUK, SUBSEKTOR, FIELDS, DOSIS_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT,
-} from './schema.js?v=20260922';
+} from './schema.js?v=20261011';
 import {
   state, load, emit, onChange, uid, cleanKtp, num, numLuas, txt, upper, fmt,
   emptyPetani, normalizePetani, dosisFor, komoditasList,
@@ -14,13 +14,15 @@ import {
   sebaranBarisMt, sebaranPupuk, isPmaas, dosisBerlaku, pmaasRingkas, setPmaas,
   janganSimpan, setJanganSimpan, bersihkanSesi,
   simpanMentah, hapusMentah, mentahRingkas, mentahUntukPoktan, poktanMentah,
-} from './store.js?v=20260922';
+  bandingTahun, rekapSelisih,
+} from './store.js?v=20261011';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
   parseDosisSheet, buildTemplateWorkbook, downloadWorkbook,
   buildBackupWorkbook, backupToPetani, bacaDaftarPoktan, buildMentahWorkbook,
   bacaSimluhtan,
-} from './xlsxio.js?v=20260922';
+  bacaBandinganWb, buildTabelWorkbook,
+} from './xlsxio.js?v=20261011';
 
 /* ── helper DOM ──────────────────────────────────────────── */
 const $  = (s, r = document) => r.querySelector(s);
@@ -68,6 +70,7 @@ function go(view) {
   if (view === 'ekspor') renderEkspor();
   if (view === 'dosis') { renderDosis(); renderPmaas(); }
   if (view === 'poktan') renderPoktan();
+  if (view === 'banding') renderBanding();
   if (view === 'setelan') fillSetelan();
 }
 $$('.nav-item').forEach((b) => (b.onclick = () => go(b.dataset.view)));
@@ -1703,6 +1706,337 @@ $('#issueList').addEventListener('click', (e) => {
   const p = state.petani.find((x) => x.id === row.dataset.id);
   if (p) openDrawer(p);
 });
+
+/* ============================================================
+   BANDING ANTAR TAHUN
+   ============================================================ */
+
+/* Perbandingan hidup di memori saja, tidak di localStorage. Dua berkas 800
+   baris menambah ratusan KB ke satu-satunya kunci penyimpanan, dan ini alat
+   periksa sekali pakai — bukan data yang dirawat pengguna. Konsekuensinya
+   dikatakan terang-terangan di panel, jangan sampai mengejutkan. */
+let bd = { lalu: null, ini: null, hasil: null, grup: 'hilang' };
+
+/* label = tombol segmen (pendek, empat harus muat sebaris di ponsel)
+   sheet = nama sheet di berkas unduhan, boleh lebih panjang
+   ikon  = lambang di judul kartu Rincian, ikut segmen yang sedang dipilih */
+const GRUP = [
+  { k: 'hilang', label: 'Hilang', sheet: 'Hilang',          ikon: 'ti-user-off' },
+  { k: 'pindah', label: 'Pindah', sheet: 'Pindah Kelompok', ikon: 'ti-transfer' },
+  { k: 'turun',  label: 'Turun',  sheet: 'Luas Turun',      ikon: 'ti-trending-down' },
+  { k: 'baru',   label: 'Baru',   sheet: 'Baru',            ikon: 'ti-user-plus' },
+];
+
+/** Kolom tiap kelompok berbeda: yang hilang tidak punya sisi "tahun ini",
+ *  yang pindah justru dua kelompok, yang turun dua angka luas. */
+const BD_KOLOM = {
+  hilang: ['NIK', 'Nama', 'Kelompok', 'Komoditas', 'Luas Tahun Lalu'],
+  pindah: ['NIK', 'Nama', 'Kelompok Tahun Lalu', 'Kelompok Tahun Ini', 'Luas Tahun Ini'],
+  turun:  ['NIK', 'Nama', 'Kelompok', 'Luas Tahun Lalu', 'Luas Tahun Ini', 'Berkurang'],
+  baru:   ['NIK', 'Nama', 'Kelompok', 'Komoditas', 'Luas Tahun Ini'],
+};
+
+const BD_NUM = /Luas|Berkurang/;
+
+const luasTotal = (a) => (a || []).reduce((s, v) => s + numLuas(v), 0);
+
+/** Data yang sudah ada di aplikasi, dalam bentuk catatan banding. */
+function bandinganDariApp() {
+  const peta = new Map();
+  state.petani.forEach((p) => {
+    const ktp = cleanKtp(p.ktp);
+    if (!ktp) return;
+    const luas = p.mt.map((m) => numLuas(m.luas));
+    const kom = p.mt.map((m, i) => (luas[i] > 0 ? upper(m.komoditas) : ''));
+    const lama = peta.get(ktp);
+    if (lama) {
+      lama.luas = lama.luas.map((v, i) => v + luas[i]);
+      lama.kom = lama.kom.map((v, i) => v || kom[i]);
+      lama.ganda++;
+      return;
+    }
+    peta.set(ktp, {
+      ktp, nama: upper(p.namaPetani), namaIbu: upper(p.namaIbu),
+      idPoktan: txt(p.idPoktan), namaPoktan: upper(p.namaPoktan),
+      kodeDesa: txt(p.kodeDesa), namaDesa: upper(p.namaDesa),
+      kom, luas, baris: 0, ganda: 1,
+    });
+  });
+  return [...peta.values()];
+}
+
+async function muatBanding(sisi, file) {
+  try {
+    const mb = file.size / (1024 * 1024);
+    if (mb > BATAS_UKURAN_MB) {
+      return toast(`Berkas ${mb.toFixed(1)} MB melebihi batas ${BATAS_UKURAN_MB} MB`, 'err');
+    }
+    const wb = readWorkbook(await readFile(file));
+    const { sheet, baris } = bacaBandinganWb(wb);
+    if (!baris.length) return toast('Tidak menemukan kolom KTP/NIK di berkas itu', 'err');
+
+    bd[sisi] = { nama: file.name, sheet, baris, sumber: 'berkas' };
+    bd.hasil = null;
+    renderBanding();
+    toast(`${file.name} · sheet "${sheet}" — ${fmt(baris.length)} NIK terbaca`);
+  } catch (err) {
+    console.error(err);
+    toast('Gagal membaca berkas: ' + err.message, 'err');
+  }
+}
+
+/* dua dropzone: klik dan seret-jatuh, perlakuannya sama */
+[['lalu', '#bdDzLalu', '#bdFileLalu'], ['ini', '#bdDzIni', '#bdFileIni']].forEach(([sisi, dzSel, inSel]) => {
+  const zona = $(dzSel);
+  zona.onclick = () => $(inSel).click();
+  $(inSel).onchange = (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (f) muatBanding(sisi, f);
+  };
+  zona.addEventListener('dragover', (e) => { e.preventDefault(); zona.classList.add('over'); });
+  zona.addEventListener('dragleave', () => zona.classList.remove('over'));
+  zona.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zona.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) muatBanding(sisi, f);
+  });
+});
+
+$('#bdPakaiApp').onclick = () => {
+  const baris = bandinganDariApp();
+  if (!baris.length) return toast('Belum ada petani ber-NIK di aplikasi', 'warn');
+  bd.ini = { nama: 'Data di aplikasi', sheet: '', baris, sumber: 'app' };
+  bd.hasil = null;
+  renderBanding();
+  toast(`${fmt(baris.length)} NIK diambil dari data aplikasi`);
+};
+
+$('#bdKosong').onclick = () => {
+  bd = { lalu: null, ini: null, hasil: null, grup: 'hilang' };
+  renderBanding();
+};
+
+$('#bdJalan').onclick = () => {
+  if (!bd.lalu || !bd.ini) return toast('Pilih berkas tahun lalu dan tahun ini lebih dulu', 'warn');
+  bd.hasil = bandingTahun(bd.lalu.baris, bd.ini.baris);
+  bd.grup = 'hilang';
+  renderBanding();
+  const n = bd.hasil.hilang.length;
+  toast(n ? `${fmt(n)} NIK tahun lalu tidak ada lagi tahun ini` : 'Tidak ada NIK yang hilang',
+    n ? 'warn' : 'ok');
+};
+
+$('#bdFPoktan').onchange = () => renderBandingRincian();
+
+$('#bdSeg').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-g]');
+  if (!b) return;
+  bd.grup = b.dataset.g;
+  renderBandingHasil();
+});
+
+/* tombol X pada ringkasan berkas — dipasang di seksi karena isinya dirender ulang */
+$('#view-banding').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-bd-buang]');
+  if (!b) return;
+  bd[b.dataset.bdBuang] = null;
+  bd.hasil = null;
+  renderBanding();
+});
+
+/* ── pelengkap nama ──────────────────────────────────────── */
+
+/* Template ERDKK hanya memuat NIK dan ID Poktan — tidak ada nama petani
+   maupun nama kelompok. Tanpa dilengkapi, laporannya cuma deret angka yang
+   tak bisa ditindaklanjuti. Sumbernya berurutan: sisi lain perbandingan,
+   data petani di aplikasi, lalu peta nama→ID di tab ID Poktan. */
+let bdPeta = { nama: new Map(), poktan: new Map() };
+
+function petaLengkap() {
+  const nama = new Map();      // NIK → nama petani
+  const poktan = new Map();    // ID Poktan → nama kelompok
+
+  const serap = (list) => (list || []).forEach((r) => {
+    if (r.nama && !nama.has(r.ktp)) nama.set(r.ktp, r.nama);
+    if (r.idPoktan && r.namaPoktan && !poktan.has(r.idPoktan)) poktan.set(r.idPoktan, r.namaPoktan);
+  });
+  serap(bd.lalu && bd.lalu.baris);
+  serap(bd.ini && bd.ini.baris);
+
+  state.petani.forEach((p) => {
+    const k = cleanKtp(p.ktp);
+    const id = txt(p.idPoktan);
+    if (k && upper(p.namaPetani) && !nama.has(k)) nama.set(k, upper(p.namaPetani));
+    if (id && upper(p.namaPoktan) && !poktan.has(id)) poktan.set(id, upper(p.namaPoktan));
+  });
+  Object.entries(state.poktanId).forEach(([n, id]) => {
+    if (txt(id) && !poktan.has(txt(id))) poktan.set(txt(id), upper(n));
+  });
+
+  return { nama, poktan };
+}
+
+const namaDari = (r) => r.nama || bdPeta.nama.get(r.ktp) || '';
+const poktanDari = (r) => r.namaPoktan || bdPeta.poktan.get(txt(r.idPoktan))
+  || (txt(r.idPoktan) ? `ID ${txt(r.idPoktan)}` : '(tanpa kelompok)');
+
+/* ── render ──────────────────────────────────────────────── */
+
+function renderBanding() {
+  bdPeta = petaLengkap();
+  $('#bdKosong').hidden = !bd.lalu && !bd.ini;
+
+  const infoSisi = (sisi, sel) => {
+    const d = bd[sisi];
+    const box = $(sel);
+    if (!d) { box.innerHTML = ''; return; }
+    const luas = d.baris.reduce((s, r) => s + luasTotal(r.luas), 0);
+    const ganda = d.baris.filter((r) => r.ganda > 1).length;
+    box.innerHTML = `<div class="alert alert-ok">
+      <i class="ti ti-${d.sumber === 'app' ? 'table' : 'file-spreadsheet'}"></i>
+      <div><b>${esc(d.nama)}</b>${fmt(d.baris.length)} NIK${d.sheet ? ` · sheet "${esc(d.sheet)}"` : ''} · ${fmt(luas, 2)} Ha${ganda ? ` · ${fmt(ganda)} NIK ganda digabung` : ''}</div>
+      <button class="btn btn-sm btn-icon" data-bd-buang="${sisi}" title="Lepaskan berkas ini"><i class="ti ti-x"></i></button>
+    </div>`;
+  };
+  infoSisi('lalu', '#bdInfoLalu');
+  infoSisi('ini', '#bdInfoIni');
+
+  renderBandingHasil();
+}
+
+function renderBandingHasil() {
+  const h = bd.hasil;
+  const badge = $('#badgeBanding');
+  badge.textContent = h ? fmt(h.hilang.length) : '0';
+  badge.classList.toggle('warn', !!h && h.hilang.length > 0);
+
+  ['#bdStats', '#bdCardRekap', '#bdCardHasil'].forEach((s) => { $(s).hidden = !h; });
+  if (!h) return;
+
+  const luasHilang = h.hilang.reduce((s, x) => s + luasTotal(x.lalu.luas), 0);
+  const luasTurun = h.turun.reduce((s, x) => s + x.selisih, 0);
+  $('#bdStats').innerHTML = [
+    { k: 'NIK Tahun Lalu', v: fmt(h.nLalu) },
+    { k: 'NIK Tahun Ini', v: fmt(h.nIni) },
+    // satuan "NIK" disebut supaya angka luas di sebelahnya tidak terbaca
+    // menyambung dengan jumlahnya — "1 1,00 Ha" mudah disalahbaca
+    { k: 'Hilang', v: fmt(h.hilang.length), u: `NIK · ${fmt(luasHilang, 2)} Ha` },
+    { k: 'Pindah Kelompok', v: fmt(h.pindah.length), u: 'NIK' },
+    { k: 'Luas Turun', v: fmt(h.turun.length), u: `NIK · turun ${fmt(luasTurun, 2)} Ha` },
+    { k: 'Baru', v: fmt(h.baru.length), u: 'NIK' },
+    { k: 'Tetap', v: fmt(h.tetap), u: 'NIK' },
+  ].map((t) => `<div class="stat"><div class="stat-k">${t.k}</div><div class="stat-v">${t.v}${t.u ? `<span class="stat-u">${t.u}</span>` : ''}</div></div>`).join('');
+
+  const rekap = rekapSelisih(h, poktanDari);
+  $('#bdBodyRekap').innerHTML = rekap.length ? rekap.map((o) => `<tr>
+    <td>${esc(o.nama)}</td>
+    <td class="num">${o.hilang ? `<b>${fmt(o.hilang)}</b>` : '—'}</td>
+    <td class="num">${o.luasHilang ? fmt(o.luasHilang, 2) : '—'}</td>
+    <td class="num">${o.pindah || '—'}</td>
+    <td class="num">${o.turun || '—'}</td>
+    <td class="num">${o.baru || '—'}</td></tr>`).join('')
+    : `<tr><td colspan="6"><div class="tbl-empty"><i class="ti ti-equal"></i><b>Tidak ada selisih</b>Seluruh NIK tahun lalu masih ada tahun ini, di kelompok yang sama dan dengan luas yang sama.</div></td></tr>`;
+
+  $('#bdSeg').innerHTML = GRUP.map((g) =>
+    `<button data-g="${g.k}"${bd.grup === g.k ? ' class="on"' : ''}>${g.label} ${fmt(h[g.k].length)}</button>`).join('');
+
+  const kel = rekap.map((o) => o.nama).sort((a, b) => a.localeCompare(b));
+  const kini = $('#bdFPoktan').value;
+  $('#bdFPoktan').innerHTML = '<option value="">Semua kelompok</option>' +
+    kel.map((n) => `<option value="${esc(n)}"${n === kini ? ' selected' : ''}>${esc(n)}</option>`).join('');
+
+  renderBandingRincian();
+}
+
+/** Satu baris rincian. Mode `angka` dipakai untuk unduhan: fmt() memberi
+ *  koma desimal Indonesia yang di Excel jadi teks, bukan angka yang bisa
+ *  dijumlahkan — jadi berkas unduhan menerima bilangan apa adanya. */
+function barisRincian(g, x, { angka = false } = {}) {
+  const a = x.lalu, b = x.ini;
+  const komoditas = (r) => (r.kom || []).filter(Boolean).join(' · ') || (angka ? '' : '—');
+  const L = (v) => (angka ? +Number(v).toFixed(2) : fmt(v, 2));
+  const N = (v) => v || (angka ? '' : '—');
+  if (g === 'hilang') return [a.ktp, N(namaDari(a)), poktanDari(a), komoditas(a), L(luasTotal(a.luas))];
+  if (g === 'pindah') return [a.ktp, N(namaDari(a) || namaDari(b)), poktanDari(a), poktanDari(b), L(luasTotal(b.luas))];
+  if (g === 'turun') return [a.ktp, N(namaDari(a)), poktanDari(a), L(luasTotal(a.luas)), L(luasTotal(b.luas)), L(x.selisih)];
+  return [b.ktp, N(namaDari(b)), poktanDari(b), komoditas(b), L(luasTotal(b.luas))];
+}
+
+function rincianTerpilih() {
+  const h = bd.hasil;
+  if (!h) return [];
+  const f = $('#bdFPoktan').value;
+  const kelompok = (x) => poktanDari(bd.grup === 'baru' ? x.ini : x.lalu);
+  return h[bd.grup].filter((x) => !f || kelompok(x) === f);
+}
+
+const BD_KOSONG = {
+  hilang: ['ti-circle-check', 'Tidak ada yang hilang', 'Seluruh NIK tahun lalu masih terdaftar tahun ini.'],
+  pindah: ['ti-circle-check', 'Tidak ada yang pindah kelompok', 'Setiap NIK masih di kelompok yang sama.'],
+  turun:  ['ti-circle-check', 'Tidak ada luas yang turun', 'Luas setiap NIK sama atau bertambah.'],
+  baru:   ['ti-equal', 'Tidak ada petani baru', 'Tidak ada NIK tahun ini yang belum ada tahun lalu.'],
+};
+
+function renderBandingRincian() {
+  if (!bd.hasil) return;
+  const g = bd.grup;
+  const kolom = BD_KOLOM[g];
+  const rows = rincianTerpilih();
+
+  // lambang judul ikut segmen — penanda cepat sedang melihat daftar yang mana
+  $('#bdIkon').className = `ti ${(GRUP.find((x) => x.k === g) || GRUP[0]).ikon}`;
+
+  $('#bdHead').innerHTML = `<tr>${kolom.map((c) =>
+    `<th${BD_NUM.test(c) ? ' class="num"' : ''}>${esc(c)}</th>`).join('')}</tr>`;
+
+  const k = BD_KOSONG[g];
+  $('#bdBody').innerHTML = rows.length
+    ? rows.map((x) => `<tr>${barisRincian(g, x).map((v, i) =>
+        `<td class="${BD_NUM.test(kolom[i]) ? 'num' : i === 0 ? 'mono nowrap' : ''}">${esc(v)}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${kolom.length}"><div class="tbl-empty"><i class="ti ${k[0]}"></i><b>${k[1]}</b>${$('#bdFPoktan').value ? 'Tidak ada pada kelompok yang dipilih.' : k[2]}</div></td></tr>`;
+}
+
+$('#bdUnduh').onclick = () => {
+  const h = bd.hasil;
+  if (!h) return toast('Belum ada hasil perbandingan', 'warn');
+
+  // satu sheet per kelompok temuan; yang kosong tidak perlu dibuatkan sheet
+  const bagian = GRUP.filter((g) => h[g.k].length).map((g) => ({
+    nama: g.sheet,
+    judul: BD_KOLOM[g.k],
+    baris: h[g.k].map((x) => barisRincian(g.k, x, { angka: true })),
+    ktpKol: 0,
+  }));
+
+  const rekap = rekapSelisih(h, poktanDari);
+  bagian.push({
+    nama: 'Rekap',
+    judul: ['Kelompok', 'Hilang', 'Luas Hilang (Ha)', 'Pindah', 'Luas Turun', 'Baru'],
+    baris: rekap.map((o) => [o.nama, o.hilang, +o.luasHilang.toFixed(2), o.pindah, o.turun, o.baru]),
+  });
+  bagian.push({
+    nama: 'Keterangan',
+    judul: ['Keterangan', 'Isi'],
+    baris: [
+      ['Berkas tahun lalu', bd.lalu.nama],
+      ['Berkas tahun ini', bd.ini.nama],
+      ['Dicocokkan lewat', 'NIK'],
+      ['NIK tahun lalu', h.nLalu],
+      ['NIK tahun ini', h.nIni],
+      ['Hilang', h.hilang.length],
+      ['Pindah kelompok', h.pindah.length],
+      ['Luas turun', h.turun.length],
+      ['Baru', h.baru.length],
+      ['Tetap', h.tetap],
+      ['Dibuat', new Date().toLocaleString('id-ID')],
+    ],
+  });
+
+  downloadWorkbook(buildTabelWorkbook(bagian), 'selisih-erdkk');
+  toast('Laporan selisih diunduh');
+};
 
 /* ============================================================
    EKSPOR
