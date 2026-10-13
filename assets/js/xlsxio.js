@@ -4,10 +4,10 @@
 
 import {
   TEMPLATE_HEADERS, PUPUK, FIELDS, DOSIS_ALIAS, normHeader,
-} from './schema.js?v=20261011';
+} from './schema.js?v=20261013';
 import {
   state, uid, cleanKtp, num, numLuas, txt, upper, recalcPetani, emptyMt,
-} from './store.js?v=20261011';
+} from './store.js?v=20261013';
 
 /* ── BACA ────────────────────────────────────────────────── */
 
@@ -299,10 +299,10 @@ export function bacaDaftarPoktan(matrix) {
 /* ── BACA UNTUK PERBANDINGAN TAHUN ───────────────────────── */
 
 /** Baca satu sheet (template ERDKK atau database poktan) menjadi catatan
- *  ringkas untuk dibandingkan antar tahun. Hanya kolom yang dipakai
+ *  ringkas untuk dibandingkan dengan berkas lain. Hanya kolom yang dipakai
  *  perbandingan yang diambil; pupuk diabaikan karena ikut luas.
  *
- *  Berkas tahun lalu boleh berformat 2026 ("MT1") maupun 2027
+ *  Berkas lama boleh berformat 2026 ("MT1") maupun 2027
  *  ("Periode Tanam I") — alias di FIELDS menerima keduanya.
  *  NIK ganda dalam satu berkas digabung dan luasnya dijumlahkan, sama
  *  seperti perlakuan "NIK Ganda" di tab Check.
@@ -439,7 +439,7 @@ export function buildTemplateWorkbook(list, opts = {}) {
 
 /** Workbook bertabel: satu sheet per bagian, judul di baris pertama.
  *  Dipakai untuk unduhan data mentah (isinya persis seperti saat dibaca) dan
- *  untuk laporan selisih antar tahun.
+ *  untuk laporan selisih antar berkas.
  *  @param {{nama?:string, judul:any[], baris:any[][], ktpKol?:number}[]} bagian
  *         ktpKol = indeks kolom NIK yang harus ditulis sebagai teks */
 export function buildTabelWorkbook(bagian) {

@@ -2,7 +2,7 @@
    store.js — state, penyimpanan lokal, hitung pupuk, validasi
    ============================================================ */
 
-import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js?v=20261011';
+import { DOSIS_DEFAULT, DOSIS_META_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT, PUPUK } from './schema.js?v=20261013';
 
 const KEY = 'projekt-fer:v1';
 
@@ -537,7 +537,7 @@ export function poktanMentah() {
   return set;
 }
 
-/* ── BANDING ANTAR TAHUN ─────────────────────────────────── */
+/* ── BANDING DUA KUMPULAN DATA ───────────────────────────── */
 
 /** Toleransi selisih luas (Ha). Di bawah ini dianggap tidak berubah —
  *  pembulatan berkas sumber sering menyisakan beda 0,001 Ha. */
@@ -548,10 +548,10 @@ const totalLuas = (a) => (a || []).reduce((s, v) => s + numLuas(v), 0);
 /** Bandingkan dua daftar catatan hasil bacaBandingan(), dikunci pada NIK.
  *
  *  Empat kelompok hasil, saling lepas:
- *   · hilang — NIK tahun lalu yang tidak ada lagi tahun ini
+ *   · hilang — NIK di berkas sebelumnya yang tidak ada lagi di berkas baru
  *   · pindah — NIK ada di dua tahun, tapi kelompoknya berbeda
  *   · turun  — NIK & kelompok sama, total luas berkurang
- *   · baru   — NIK yang hanya ada tahun ini
+ *   · baru   — NIK yang hanya ada di berkas baru
  *  Sisanya masuk hitungan "tetap".
  *
  *  Kelompok dibandingkan lewat ID Poktan bila kedua berkas memuatnya; kalau

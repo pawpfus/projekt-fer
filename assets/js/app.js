@@ -4,7 +4,7 @@
 
 import {
   PUPUK, SUBSEKTOR, FIELDS, DOSIS_DEFAULT, SETTINGS_DEFAULT, PMAAS_DEFAULT,
-} from './schema.js?v=20261011';
+} from './schema.js?v=20261013';
 import {
   state, load, emit, onChange, uid, cleanKtp, num, numLuas, txt, upper, fmt,
   emptyPetani, normalizePetani, dosisFor, komoditasList,
@@ -15,14 +15,14 @@ import {
   janganSimpan, setJanganSimpan, bersihkanSesi,
   simpanMentah, hapusMentah, mentahRingkas, mentahUntukPoktan, poktanMentah,
   bandingTahun, rekapSelisih,
-} from './store.js?v=20261011';
+} from './store.js?v=20261013';
 import {
   readWorkbook, sheetToMatrix, guessHeaderRow, autoMap, rowsToPetani,
   parseDosisSheet, buildTemplateWorkbook, downloadWorkbook,
   buildBackupWorkbook, backupToPetani, bacaDaftarPoktan, buildMentahWorkbook,
   bacaSimluhtan,
   bacaBandinganWb, buildTabelWorkbook,
-} from './xlsxio.js?v=20261011';
+} from './xlsxio.js?v=20261013';
 
 /* ── helper DOM ──────────────────────────────────────────── */
 const $  = (s, r = document) => r.querySelector(s);
@@ -1708,7 +1708,7 @@ $('#issueList').addEventListener('click', (e) => {
 });
 
 /* ============================================================
-   BANDING ANTAR TAHUN
+   DIFFER — BANDING DUA KUMPULAN DATA
    ============================================================ */
 
 /* Perbandingan hidup di memori saja, tidak di localStorage. Dua berkas 800
@@ -1727,13 +1727,13 @@ const GRUP = [
   { k: 'baru',   label: 'Baru',   sheet: 'Baru',            ikon: 'ti-user-plus' },
 ];
 
-/** Kolom tiap kelompok berbeda: yang hilang tidak punya sisi "tahun ini",
+/** Kolom tiap kelompok berbeda: yang hilang tidak punya sisi "berkas baru",
  *  yang pindah justru dua kelompok, yang turun dua angka luas. */
 const BD_KOLOM = {
-  hilang: ['NIK', 'Nama', 'Kelompok', 'Komoditas', 'Luas Tahun Lalu'],
-  pindah: ['NIK', 'Nama', 'Kelompok Tahun Lalu', 'Kelompok Tahun Ini', 'Luas Tahun Ini'],
-  turun:  ['NIK', 'Nama', 'Kelompok', 'Luas Tahun Lalu', 'Luas Tahun Ini', 'Berkurang'],
-  baru:   ['NIK', 'Nama', 'Kelompok', 'Komoditas', 'Luas Tahun Ini'],
+  hilang: ['NIK', 'Nama', 'Kelompok', 'Komoditas', 'Luas Sebelumnya'],
+  pindah: ['NIK', 'Nama', 'Kelompok Sebelumnya', 'Kelompok Baru', 'Luas Baru'],
+  turun:  ['NIK', 'Nama', 'Kelompok', 'Luas Sebelumnya', 'Luas Baru', 'Berkurang'],
+  baru:   ['NIK', 'Nama', 'Kelompok', 'Komoditas', 'Luas Baru'],
 };
 
 const BD_NUM = /Luas|Berkurang/;
@@ -1819,12 +1819,12 @@ $('#bdKosong').onclick = () => {
 };
 
 $('#bdJalan').onclick = () => {
-  if (!bd.lalu || !bd.ini) return toast('Pilih berkas tahun lalu dan tahun ini lebih dulu', 'warn');
+  if (!bd.lalu || !bd.ini) return toast('Pilih berkas sebelumnya dan berkas baru lebih dulu', 'warn');
   bd.hasil = bandingTahun(bd.lalu.baris, bd.ini.baris);
   bd.grup = 'hilang';
   renderBanding();
   const n = bd.hasil.hilang.length;
-  toast(n ? `${fmt(n)} NIK tahun lalu tidak ada lagi tahun ini` : 'Tidak ada NIK yang hilang',
+  toast(n ? `${fmt(n)} NIK tidak ada lagi di berkas baru` : 'Tidak ada NIK yang hilang',
     n ? 'warn' : 'ok');
 };
 
@@ -1918,8 +1918,8 @@ function renderBandingHasil() {
   const luasHilang = h.hilang.reduce((s, x) => s + luasTotal(x.lalu.luas), 0);
   const luasTurun = h.turun.reduce((s, x) => s + x.selisih, 0);
   $('#bdStats').innerHTML = [
-    { k: 'NIK Tahun Lalu', v: fmt(h.nLalu) },
-    { k: 'NIK Tahun Ini', v: fmt(h.nIni) },
+    { k: 'NIK Sebelumnya', v: fmt(h.nLalu) },
+    { k: 'NIK Baru', v: fmt(h.nIni) },
     // satuan "NIK" disebut supaya angka luas di sebelahnya tidak terbaca
     // menyambung dengan jumlahnya — "1 1,00 Ha" mudah disalahbaca
     { k: 'Hilang', v: fmt(h.hilang.length), u: `NIK · ${fmt(luasHilang, 2)} Ha` },
@@ -1937,7 +1937,7 @@ function renderBandingHasil() {
     <td class="num">${o.pindah || '—'}</td>
     <td class="num">${o.turun || '—'}</td>
     <td class="num">${o.baru || '—'}</td></tr>`).join('')
-    : `<tr><td colspan="6"><div class="tbl-empty"><i class="ti ti-equal"></i><b>Tidak ada selisih</b>Seluruh NIK tahun lalu masih ada tahun ini, di kelompok yang sama dan dengan luas yang sama.</div></td></tr>`;
+    : `<tr><td colspan="6"><div class="tbl-empty"><i class="ti ti-equal"></i><b>Tidak ada selisih</b>Seluruh NIK di berkas sebelumnya masih ada di berkas baru, pada kelompok dan luas yang sama.</div></td></tr>`;
 
   $('#bdSeg').innerHTML = GRUP.map((g) =>
     `<button data-g="${g.k}"${bd.grup === g.k ? ' class="on"' : ''}>${g.label} ${fmt(h[g.k].length)}</button>`).join('');
@@ -1973,10 +1973,10 @@ function rincianTerpilih() {
 }
 
 const BD_KOSONG = {
-  hilang: ['ti-circle-check', 'Tidak ada yang hilang', 'Seluruh NIK tahun lalu masih terdaftar tahun ini.'],
+  hilang: ['ti-circle-check', 'Tidak ada yang hilang', 'Seluruh NIK di berkas sebelumnya masih ada di berkas baru.'],
   pindah: ['ti-circle-check', 'Tidak ada yang pindah kelompok', 'Setiap NIK masih di kelompok yang sama.'],
   turun:  ['ti-circle-check', 'Tidak ada luas yang turun', 'Luas setiap NIK sama atau bertambah.'],
-  baru:   ['ti-equal', 'Tidak ada petani baru', 'Tidak ada NIK tahun ini yang belum ada tahun lalu.'],
+  baru:   ['ti-equal', 'Tidak ada petani baru', 'Tidak ada NIK di berkas baru yang belum ada sebelumnya.'],
 };
 
 function renderBandingRincian() {
@@ -2020,11 +2020,11 @@ $('#bdUnduh').onclick = () => {
     nama: 'Keterangan',
     judul: ['Keterangan', 'Isi'],
     baris: [
-      ['Berkas tahun lalu', bd.lalu.nama],
-      ['Berkas tahun ini', bd.ini.nama],
+      ['Berkas sebelumnya', bd.lalu.nama],
+      ['Berkas baru', bd.ini.nama],
       ['Dicocokkan lewat', 'NIK'],
-      ['NIK tahun lalu', h.nLalu],
-      ['NIK tahun ini', h.nIni],
+      ['NIK sebelumnya', h.nLalu],
+      ['NIK baru', h.nIni],
       ['Hilang', h.hilang.length],
       ['Pindah kelompok', h.pindah.length],
       ['Luas turun', h.turun.length],
